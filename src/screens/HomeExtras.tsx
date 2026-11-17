@@ -1,11 +1,10 @@
 import { motion } from 'framer-motion'
-import { ArrowRight, Brain, CalendarDays, ChartLine, CheckCircle2, Download, Gift, Share, Swords, X } from 'lucide-react'
+import { ArrowRight, Brain, CalendarDays, ChartLine, CheckCircle2, Gift, Swords } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import type { ExamConfig, Progress } from '../types'
 import { dayKey } from '../lib/game'
 import { DAILY_REWARD, dailyQuestion, dueMistakes, pendingMistakes } from '../lib/learning'
 import { itemVariants, tap } from '../lib/ui-helpers'
-import { useInstall } from '../lib/pwa'
 import { useAuth } from '../lib/auth'
 import { supabase } from '../lib/supabase'
 import { CourseIcon } from '../ui'
@@ -123,37 +122,6 @@ export function MyDuels({ onOpen }: { onOpen: (d: Duel) => void }) {
           )
         })}
       </div>
-    </motion.section>
-  )
-}
-
-/** Invitación a instalar la app en el celular. */
-export function InstallCard() {
-  const install = useInstall()
-  if (!install.canPrompt && !install.showIOSHelp) return null
-  return (
-    <motion.section variants={itemVariants} className="card install-card">
-      <button className="toast-close install-close" onClick={install.dismiss} aria-label="No mostrar más">
-        <X size={16} />
-      </button>
-      <span className="install-icon" aria-hidden="true">
-        <Download size={24} />
-      </span>
-      <div className="daily-text">
-        <strong>Instala IngresaYa en tu celular</strong>
-        {install.canPrompt ? (
-          <span>Ábrela con un toque desde tu pantalla de inicio, como cualquier app.</span>
-        ) : (
-          <span>
-            En Safari toca <Share size={14} aria-label="Compartir" /> <b>Compartir</b> y luego <b>"Agregar a inicio"</b>.
-          </span>
-        )}
-      </div>
-      {install.canPrompt && (
-        <motion.button whileTap={tap} className="btn btn-primary" onClick={() => void install.install()}>
-          Instalar
-        </motion.button>
-      )}
     </motion.section>
   )
 }

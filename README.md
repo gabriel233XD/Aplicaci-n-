@@ -17,7 +17,7 @@ App para prepararse para el examen de admisión **jugando**. Empezamos con la **
 - El pago del Premium (S/ 5 al mes) y los anuncios aún no están implementados.
 
 ## ✨ Más funciones
-- **Instalar como app (PWA):** botón "Instalar" en Android y guía para iPhone. Tiene ícono propio y abre a pantalla completa (`public/manifest.webmanifest`, `public/sw.js`).
+- **Ícono y carga rápida:** la app tiene ícono propio y un service worker para abrir rápido (`public/manifest.webmanifest`, `public/sw.js`). El botón "Instalar" se agregará cuando exista la versión APK.
 - **Pregunta del día:** la misma para todos; da +10 monedas si aciertas y +2 por intentarlo.
 - **Repasa tus errores:** las preguntas falladas vuelven en 1, 3 y 7 días hasta dominarlas (repaso espaciado).
 - **Mi progreso:** preguntas por día (2 semanas), aciertos por curso y 12 logros.

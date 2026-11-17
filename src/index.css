@@ -728,9 +728,9 @@ p { margin: 0; }
 .badge-card.on .badge-icon { background: var(--gold); color: #2a1d00; box-shadow: 0 3px 0 var(--gold-2); }
 
 /* ── Tarjetas nuevas del inicio ── */
-.daily-card, .review-card, .install-card { display: flex; align-items: center; gap: 14px; text-align: left; width: 100%; color: var(--text); position: relative; }
+.daily-card, .review-card { display: flex; align-items: center; gap: 14px; text-align: left; width: 100%; color: var(--text); position: relative; }
 .daily-card.done, .review-card.done { opacity: 0.8; box-shadow: none; }
-.daily-icon, .review-icon, .install-icon {
+.daily-icon, .review-icon {
   width: 48px; height: 48px; flex: none; display: grid; place-items: center; border-radius: 14px; position: relative;
   background: var(--surface-2); border: 2px solid var(--border); color: var(--primary);
 }
@@ -754,9 +754,6 @@ p { margin: 0; }
 .quick-action strong { font-size: 0.88rem; line-height: 1.15; }
 .quick-action span { font-size: 0.72rem; color: var(--muted); }
 .qa-icon { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 14px; background: var(--surface-2); color: var(--primary); }
-.install-card { padding-right: 36px; flex-wrap: wrap; }
-.install-card .btn { margin-left: auto; }
-.install-close { position: absolute; top: 8px; right: 8px; }
 .duel-tag { font-size: 0.75rem; font-weight: 800; border-radius: 99px; padding: 3px 10px; background: var(--track); white-space: nowrap; }
 .duel-tag.win { background: var(--ok-soft); color: var(--ok); }
 .duel-tag.lose { background: var(--bad-soft); color: var(--bad); }

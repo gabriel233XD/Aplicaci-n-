@@ -9,7 +9,7 @@ import { itemVariants, listVariants, tap } from '../lib/ui-helpers'
 import { useAuth } from '../lib/auth'
 import { supabase, type Ranking } from '../lib/supabase'
 import type { SyncState } from '../lib/storage'
-import { DailyCard, InstallCard, MyDuels, QuickActions, ReviewCard } from './HomeExtras'
+import { DailyCard, MyDuels, QuickActions, ReviewCard } from './HomeExtras'
 import type { Duel } from '../lib/duel'
 
 type Props = {
@@ -190,7 +190,6 @@ export function Home({ exam, progress, demoMode, onToggleDemo, onPractice, onPra
         <DailyCard exam={exam} progress={progress} onStart={onDaily} />
         <ReviewCard exam={exam} progress={progress} onStart={onReview} />
         <QuickActions onStats={onStats} onDuel={onDuel} onInvite={onInvite} />
-        <InstallCard />
 
         <motion.button variants={itemVariants} whileTap={tap} whileHover={{ y: -2 }} className="card free-tutor-card" onClick={() => setFreeTutor(true)}>
           <span className="free-tutor-icon" aria-hidden="true">
