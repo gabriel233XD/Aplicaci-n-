@@ -64,7 +64,11 @@ export function Welcome({ error, onSignUp, onSocial, onSignIn, onGuest }: Props)
           <motion.div variants={itemVariants} className="stack-sm">
             <SocialButtons verb="Continúa con" onPick={onSocial} />
             <p className="consent-note">
-              Al continuar confirmas que tienes 14 años o más, o que tu mamá, papá o apoderado te dio permiso.
+              Al continuar confirmas que tienes 14 años o más, o que tu mamá, papá o apoderado te dio permiso, y aceptas la{' '}
+              <a href="/privacidad.html" target="_blank" rel="noreferrer">
+                política de privacidad
+              </a>
+              .
             </p>
           </motion.div>
         )}
@@ -77,6 +81,9 @@ export function Welcome({ error, onSignUp, onSocial, onSignIn, onGuest }: Props)
         <motion.button variants={itemVariants} className="link guest-link" onClick={onGuest}>
           Continuar sin cuenta
         </motion.button>
+        <motion.a variants={itemVariants} className="link guest-link small" href="/privacidad.html" target="_blank" rel="noreferrer">
+          Política de privacidad
+        </motion.a>
       </motion.div>
     </Screen>
   )

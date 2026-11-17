@@ -23,6 +23,8 @@ type AuthState = {
   cancelRecovery: () => void
   updateAlias: (alias: string) => Promise<void>
   signOut: () => Promise<void>
+  /** Elimina la cuenta y todos sus datos (no se puede deshacer). */
+  deleteAccount: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthState | null>(null)
@@ -141,6 +143,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       async signOut() {
         await supabase!.auth.signOut()
+        setProfile(null)
+      },
+      async deleteAccount() {
+        const { error } = await supabase!.rpc('delete_my_account')
+        if (error) throw error
+        // Borra también lo guardado en este celular para esa cuenta.
+        try {
+          for (const k of Object.keys(localStorage)) if (userId && k.includes(userId)) localStorage.removeItem(k)
+        } catch {
+          // ignorar
+        }
+        await supabase!.auth.signOut({ scope: 'local' })
         setProfile(null)
       },
     }),

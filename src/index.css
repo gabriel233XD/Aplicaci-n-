@@ -668,3 +668,7 @@ p { margin: 0; }
 .social-facebook { background: #1877f2; color: #ffffff; }
 .social-x { background: var(--social-x-bg); color: var(--social-x-fg); }
 .consent-note { font-size: 0.78rem; color: var(--muted); text-align: center; }
+.check a, .consent-note a { color: var(--primary); font-weight: 800; }
+.privacy-link, .danger-link { align-self: center; gap: 6px; text-decoration: none; }
+.danger-link { color: var(--bad); }
+.delete-box { display: flex; flex-direction: column; gap: 10px; border: 2px solid var(--bad); background: var(--bad-soft); border-radius: 16px; padding: 14px; }

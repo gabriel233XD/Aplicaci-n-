@@ -22,11 +22,13 @@ App para prepararse para el examen de admisión **jugando**. Empezamos con la **
 - **Progreso en la nube**: monedas, racha y estadísticas se guardan por examen. Al crear la cuenta se sube lo que el alumno ya tenía como invitado.
 - **Ranking real** del Examen de Admisión: uno por semana, con el Top 10 por apodo y el puesto en vivo.
 - **Tutor IA**: solo con sesión iniciada. Da 3 consultas al día en el plan gratis y 10 en Premium, contadas en el servidor.
+- **Eliminar cuenta**: desde «Mi cuenta» el alumno borra su cuenta y todos sus datos (lo exigen la ley, Facebook y Google Play).
+- **Política de privacidad**: `public/privacidad.html`, publicada en `/privacidad.html`. Antes de lanzar, completa los datos marcados entre corchetes (responsable, DNI o RUC, dirección y correo).
 - **Seguridad**: con reglas de la base de datos (RLS), cada alumno solo ve y edita lo suyo. Nadie puede darse Premium ni monedas negativas, y no se puede dar dos veces el examen de la misma semana.
 
 **Cómo activarlas:**
 1. Crea un proyecto gratis en [supabase.com](https://supabase.com).
-2. En **SQL Editor**, pega y ejecuta `supabase/migrations/0001_cuentas.sql`.
+2. En **SQL Editor**, pega y ejecuta `supabase/migrations/0001_cuentas.sql` y luego `0002_eliminar_cuenta.sql`.
 3. En **Authentication → URL Configuration**, pon la dirección de tu app (por ejemplo `https://ingresaya.vercel.app`) como *Site URL*.
 4. Copia `.env.example` como `.env.local` (para probar en tu computadora) y, en Vercel, agrega las mismas variables: `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` (están en Project Settings → API).
 5. Redes sociales (opcional): actívalas en Supabase (**Authentication → Sign In / Providers**) y pon en `VITE_AUTH_PROVIDERS` las que activaste, por ejemplo `google,facebook,x`. Cada red pide crear una "app" en su página de desarrolladores y copiar su *Client ID* y *Secret* en Supabase. Como dirección de retorno (*callback URL*) se usa la que muestra Supabase (`https://<tu-proyecto>.supabase.co/auth/v1/callback`):

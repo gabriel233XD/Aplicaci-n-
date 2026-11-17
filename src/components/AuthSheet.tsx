@@ -1,10 +1,12 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { Crown, LogOut, Mail, UserRound, X } from 'lucide-react'
+import { Crown, LogOut, Mail, ShieldCheck, Trash2, UserRound, X } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { authErrorMessage, useAuth } from '../lib/auth'
 import { socialProviders, type SocialProvider } from '../lib/supabase'
 import { SocialButtons } from './SocialButtons'
 import { tap } from '../lib/ui-helpers'
+
+const PRIVACY_URL = '/privacidad.html'
 
 type Mode = 'signin' | 'signup' | 'reset'
 
@@ -106,7 +108,13 @@ export function AuthSheet({ reason, initialMode = 'signup', onClose }: Props) {
   const consentBox = (
     <label className="check" htmlFor="auth-consent">
       <input id="auth-consent" type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
-      <span>Tengo 14 años o más, o mi mamá, papá o apoderado me dio permiso para crear esta cuenta.</span>
+      <span>
+        Tengo 14 años o más, o mi mamá, papá o apoderado me dio permiso para crear esta cuenta. Leí la{' '}
+        <a href={PRIVACY_URL} target="_blank" rel="noreferrer">
+          política de privacidad
+        </a>
+        .
+      </span>
     </label>
   )
   const hasSocial = socialProviders.length > 0 && mode !== 'reset'
@@ -325,7 +333,58 @@ export function AccountSheet({ onClose }: { onClose: () => void }) {
       >
         <LogOut size={18} /> Cerrar sesión
       </motion.button>
+
+      <DeleteAccount onDeleted={onClose} />
+
+      <a className="link privacy-link" href={PRIVACY_URL} target="_blank" rel="noreferrer">
+        <ShieldCheck size={16} /> Política de privacidad
+      </a>
     </Sheet>
+  )
+}
+
+/** Eliminar la cuenta, con un paso de confirmación dentro de la misma pantalla. */
+function DeleteAccount({ onDeleted }: { onDeleted: () => void }) {
+  const auth = useAuth()
+  const [confirming, setConfirming] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  if (!confirming) {
+    return (
+      <button className="link danger-link" onClick={() => setConfirming(true)}>
+        <Trash2 size={16} /> Eliminar mi cuenta
+      </button>
+    )
+  }
+  return (
+    <div className="delete-box" role="alertdialog" aria-label="Eliminar cuenta">
+      <strong>¿Eliminar tu cuenta para siempre?</strong>
+      <p className="small">Se borrarán tu apodo, tus monedas, tu progreso, tus resultados del ranking y tu uso del tutor. No se puede deshacer.</p>
+      {error && <p className="form-error" role="alert">{error}</p>}
+      <div className="nav-row">
+        <button className="btn btn-ghost" onClick={() => setConfirming(false)} disabled={busy}>
+          Cancelar
+        </button>
+        <button
+          className="btn btn-bad"
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true)
+            setError(null)
+            try {
+              await auth.deleteAccount()
+              onDeleted()
+            } catch (err) {
+              setError(authErrorMessage(err))
+              setBusy(false)
+            }
+          }}
+        >
+          {busy ? 'Eliminando…' : 'Sí, eliminar'}
+        </button>
+      </div>
+    </div>
   )
 }
 
