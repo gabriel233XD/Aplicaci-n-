@@ -1,4 +1,7 @@
+import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useRef, useState } from 'react'
+import { CourseIcon, Screen } from '../ui'
+import { courseStyle, tap } from '../lib/ui-helpers'
 import type { ShownQuestion } from '../types'
 
 type Props = {
@@ -42,6 +45,10 @@ export function WeeklyExam({ questions, minutes, onFinish }: Props) {
   }, [])
 
   const { question, order } = questions[index]
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [index])
   const answeredCount = answers.filter((a) => a !== null).length
 
   function choose(orig: number) {
@@ -56,79 +63,129 @@ export function WeeklyExam({ questions, minutes, onFinish }: Props) {
     onFinish(answers)
   }
 
+  const timePct = (left / (minutes * 60)) * 100
+
   return (
-    <div className="screen">
+    <Screen className="quiz" style={courseStyle(question.course)}>
       <header className="topbar exam-bar">
-        <span className={`timer ${left < 600 ? 'urgent' : ''}`}>⏱ {formatTime(left)}</span>
-        <button className="link" onClick={() => setShowGrid(!showGrid)}>
+        <span className={`timer ${left < 600 ? 'urgent' : ''}`}>
+          <motion.span animate={left < 600 ? { scale: [1, 1.15, 1] } : {}} transition={{ duration: 1, repeat: Infinity }}>⏱</motion.span>{' '}
+          {formatTime(left)}
+        </span>
+        <motion.button className="pill grid-toggle" whileTap={tap} onClick={() => setShowGrid(!showGrid)} aria-expanded={showGrid}>
           {answeredCount}/{questions.length} ▦
-        </button>
+        </motion.button>
       </header>
-
-      {showGrid && (
-        <div className="grid">
-          {questions.map((_, i) => (
-            <button
-              key={i}
-              className={`cell ${answers[i] !== null ? 'done' : ''} ${i === index ? 'current' : ''}`}
-              onClick={() => {
-                setIndex(i)
-                setShowGrid(false)
-              }}
-            >
-              {i + 1}
-            </button>
-          ))}
-        </div>
-      )}
-
-      <div className="muted small">
-        Pregunta {index + 1} · {question.course}
+      <div className="progress-bar thin">
+        <motion.div className="time-fill" animate={{ width: `${timePct}%` }} transition={{ duration: 1, ease: 'linear' }} />
       </div>
-      <h2 className="statement">{question.statement}</h2>
 
-      <div className="stack-sm">
-        {order.map((orig, pos) => (
-          <button
-            key={orig}
-            className={`option ${answers[index] === orig ? 'selected' : ''}`}
-            onClick={() => choose(orig)}
+      <AnimatePresence initial={false}>
+        {showGrid && (
+          <motion.div
+            className="grid-wrap"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
           >
-            <span className="letter">{LETTERS[pos]}</span>
-            {question.options[orig]}
-          </button>
-        ))}
-      </div>
+            <div className="grid">
+              {questions.map((_, i) => (
+                <button
+                  key={i}
+                  className={`cell ${answers[i] !== null ? 'done' : ''} ${i === index ? 'current' : ''}`}
+                  onClick={() => {
+                    setIndex(i)
+                    setShowGrid(false)
+                  }}
+                >
+                  {i + 1}
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={index}
+          className="stack"
+          initial={{ opacity: 0, x: 30 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -30 }}
+          transition={{ type: 'spring', stiffness: 380, damping: 34 }}
+        >
+          <div className="q-course">
+            <CourseIcon course={question.course} size="sm" />
+            <span>
+              Pregunta {index + 1} · {question.course}
+            </span>
+          </div>
+          <h2 className="statement">{question.statement}</h2>
+
+          <div className="stack-sm">
+            {order.map((orig, pos) => {
+              const sel = answers[index] === orig
+              return (
+                <motion.button
+                  key={orig}
+                  whileTap={tap}
+                  animate={sel ? { scale: [1, 1.03, 1] } : { scale: 1 }}
+                  transition={{ duration: 0.25 }}
+                  className={`option ${sel ? 'selected' : ''}`}
+                  onClick={() => choose(orig)}
+                >
+                  <span className="letter">{LETTERS[pos]}</span>
+                  <span>{question.options[orig]}</span>
+                </motion.button>
+              )
+            })}
+          </div>
+        </motion.div>
+      </AnimatePresence>
 
       <div className="nav-row">
-        <button className="btn btn-ghost" disabled={index === 0} onClick={() => setIndex(index - 1)}>
+        <motion.button whileTap={tap} className="btn btn-ghost" disabled={index === 0} onClick={() => setIndex(index - 1)}>
           ← Anterior
-        </button>
+        </motion.button>
         {index + 1 < questions.length ? (
-          <button className="btn btn-primary" onClick={() => setIndex(index + 1)}>
+          <motion.button whileTap={tap} className="btn btn-primary" onClick={() => setIndex(index + 1)}>
             Siguiente →
-          </button>
+          </motion.button>
         ) : (
-          <button className="btn btn-primary" onClick={() => setConfirming(true)}>
+          <motion.button whileTap={tap} className="btn btn-primary" onClick={() => setConfirming(true)}>
             Terminar
-          </button>
+          </motion.button>
         )}
       </div>
-      {confirming ? (
-        <div className="card confirm-box">
-          <strong>
-            {missing > 0 ? `Te faltan ${missing} preguntas. ¿Entregar el examen igual?` : '¿Entregar el examen?'}
-          </strong>
-          <div className="nav-row">
-            <button className="btn btn-ghost" onClick={() => setConfirming(false)}>Seguir respondiendo</button>
-            <button className="btn btn-primary" onClick={finish}>Sí, entregar</button>
-          </div>
-        </div>
-      ) : (
-        <button className="btn btn-ghost" onClick={() => setConfirming(true)}>
-          Entregar examen
-        </button>
-      )}
-    </div>
+
+      <AnimatePresence mode="wait" initial={false}>
+        {confirming ? (
+          <motion.div
+            key="confirm"
+            className="card confirm-box"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 12 }}
+          >
+            <strong>
+              {missing > 0 ? `Te faltan ${missing} preguntas. ¿Entregar el examen igual?` : '¿Entregar el examen?'}
+            </strong>
+            <div className="nav-row">
+              <motion.button whileTap={tap} className="btn btn-ghost" onClick={() => setConfirming(false)}>
+                Seguir respondiendo
+              </motion.button>
+              <motion.button whileTap={tap} className="btn btn-primary" onClick={finish}>
+                Sí, entregar
+              </motion.button>
+            </div>
+          </motion.div>
+        ) : (
+          <motion.button key="deliver" whileTap={tap} className="btn btn-ghost full" onClick={() => setConfirming(true)}>
+            Entregar examen
+          </motion.button>
+        )}
+      </AnimatePresence>
+    </Screen>
   )
 }

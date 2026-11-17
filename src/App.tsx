@@ -1,4 +1,5 @@
-import { useCallback, useState } from 'react'
+import { AnimatePresence, MotionConfig } from 'framer-motion'
+import { useCallback, useState, type ReactNode } from 'react'
 import { exams } from './data/exams'
 import type { ExamConfig, ShownQuestion, WeeklyResult } from './types'
 import { RULES, dayKey, pickQuestions, simulatedRanking, weekId } from './lib/game'
@@ -22,9 +23,18 @@ export default function App() {
   }
 
   const exam = exams.find((e) => e.id === examId)
-  if (!exam) return <ExamPicker onPick={pick} />
-  // `key` separa el progreso de cada examen (UNICA, Beca 18, etc.).
-  return <ExamApp key={exam.id} exam={exam} onChangeExam={() => pick(null)} />
+  return (
+    <MotionConfig reducedMotion="user">
+      <AnimatePresence mode="wait">
+        {exam ? (
+          // `key` separa el progreso de cada examen (UNICA, Beca 18, etc.).
+          <ExamApp key={exam.id} exam={exam} onChangeExam={() => pick(null)} />
+        ) : (
+          <ExamPicker key="picker" onPick={pick} />
+        )}
+      </AnimatePresence>
+    </MotionConfig>
+  )
 }
 
 type View =
@@ -126,10 +136,14 @@ function ExamApp({ exam, onChangeExam }: { exam: ExamConfig; onChangeExam: () =>
     [demoMode, progress.weeklyResults, update],
   )
 
+  return <AnimatePresence mode="wait">{renderView()}</AnimatePresence>
+
+  function renderView(): ReactNode {
   switch (view.name) {
     case 'home':
       return (
         <Home
+          key="home"
           exam={exam}
           progress={progress}
           demoMode={demoMode}
@@ -141,10 +155,11 @@ function ExamApp({ exam, onChangeExam }: { exam: ExamConfig; onChangeExam: () =>
         />
       )
     case 'setup':
-      return <PracticeSetup exam={exam} onBack={home} onStart={(course, count) => startPractice(course, count)} />
+      return <PracticeSetup key="setup" exam={exam} onBack={home} onStart={(course, count) => startPractice(course, count)} />
     case 'practice':
       return (
         <Practice
+          key="practice"
           questions={view.questions}
           onQuit={home}
           onFinish={(answers) => finishPractice(view.questions, answers, view.course)}
@@ -153,6 +168,7 @@ function ExamApp({ exam, onChangeExam }: { exam: ExamConfig; onChangeExam: () =>
     case 'practiceResult':
       return (
         <PracticeResult
+          key="practiceResult"
           summary={view.summary}
           questions={view.questions}
           chosen={view.chosen}
@@ -163,6 +179,7 @@ function ExamApp({ exam, onChangeExam }: { exam: ExamConfig; onChangeExam: () =>
     case 'weekly':
       return (
         <WeeklyExam
+          key="weekly"
           questions={view.questions}
           minutes={exam.weekly.minutes}
           onFinish={(chosen) => finishWeekly(view.questions, chosen)}
@@ -171,6 +188,7 @@ function ExamApp({ exam, onChangeExam }: { exam: ExamConfig; onChangeExam: () =>
     case 'weeklyResult':
       return (
         <WeeklyResultView
+          key="weeklyResult"
           result={view.result}
           previous={view.previous}
           bonus={view.bonus}
@@ -179,5 +197,6 @@ function ExamApp({ exam, onChangeExam }: { exam: ExamConfig; onChangeExam: () =>
           onHome={home}
         />
       )
+  }
   }
 }
