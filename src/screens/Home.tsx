@@ -1,7 +1,7 @@
 import { ArrowLeft, ArrowRight, ChartColumn, CircleCheck, CirclePlay, Cloud, CloudOff, Coins, Crown, MessageCircleQuestion, FileText, LogIn, PencilLine, Target, Timer, Trophy, UserRound } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
-import type { ExamConfig, Progress } from '../types'
+import type { Area, ExamConfig, Progress } from '../types'
 import { isWeeklyOpen, nextWeeklyOpening, weakTopics, weekId } from '../lib/game'
 import { CoinPill, CourseIcon, Screen, StreakPill } from '../ui'
 import { TutorPanel } from '../components/TutorPanel'
@@ -30,6 +30,8 @@ type Props = {
   onInvite: () => void
   onDuel: () => void
   onOpenDuel: (duel: Duel) => void
+  area: Area | null
+  onChangeArea: () => void
 }
 
 const SYNC_LABEL: Record<SyncState, string> = {
@@ -53,7 +55,7 @@ function useCountdown(target: Date) {
   return { d, h, m }
 }
 
-export function Home({ exam, progress, demoMode, onToggleDemo, onPractice, onPracticeTopic, onWeekly, onChangeExam, sync, needsAccountForWeekly, onAccount, onReview, onDaily, onStats, onInvite, onDuel, onOpenDuel }: Props) {
+export function Home({ exam, progress, demoMode, onToggleDemo, onPractice, onPracticeTopic, onWeekly, onChangeExam, sync, needsAccountForWeekly, onAccount, onReview, onDaily, onStats, onInvite, onDuel, onOpenDuel, area, onChangeArea }: Props) {
   const auth = useAuth()
   const open = demoMode || isWeeklyOpen()
   const alreadyDone = !demoMode && progress.weeklyResults.some((r) => r.weekId === weekId())
@@ -108,6 +110,11 @@ export function Home({ exam, progress, demoMode, onToggleDemo, onPractice, onPra
       <motion.div className="stack home-grid" variants={listVariants} initial="hidden" animate="show">
         <motion.div variants={itemVariants} className="greeting">
           <h1>¡Hola, {auth.profile?.alias ?? 'postulante'}!</h1>
+          {area && (
+            <motion.button whileTap={tap} className="area-chip" onClick={onChangeArea}>
+              Área {area.id} · {area.name} <span>Cambiar</span>
+            </motion.button>
+          )}
           <p className="muted">
             {progress.answered === 0
               ? 'Empieza con una práctica corta para ganar tus primeras monedas.'

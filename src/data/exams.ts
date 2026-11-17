@@ -1,6 +1,7 @@
 import type { ExamConfig } from '../types'
 import { unicaQuestions } from './unica'
 import { unicaAreaBQuestions } from './unica-area-b'
+import { UNICA_AREAS } from './unica-areas'
 
 // Cada examen tiene su propio banco de preguntas y su propio progreso,
 // para no mezclar la UNICA con Beca 18 ni con otras universidades.
@@ -12,6 +13,7 @@ export const exams: ExamConfig[] = [
     description: 'Prepárate para el examen de admisión de la UNICA.',
     available: true,
     questions: [...unicaQuestions, ...unicaAreaBQuestions],
+    areas: UNICA_AREAS,
     // Estructura provisional: se ajustará con el prospecto oficial.
     weekly: { questionCount: 100, minutes: 180, entryCost: 100 },
   },

@@ -1,7 +1,7 @@
 import { AnimatePresence, MotionConfig } from 'framer-motion'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { exams } from './data/exams'
-import type { ExamConfig, ShownQuestion, WeeklyResult } from './types'
+import type { AreaId, ExamConfig, ShownQuestion, WeeklyResult } from './types'
 import { RULES, dayKey, pickQuestions, shuffle, simulatedRanking, weekId } from './lib/game'
 import { DAILY_REWARD, dailyQuestion, dueMistakes, newAchievements, recordAnswers } from './lib/learning'
 import { captureLinkParams, clearDuel, clearRef, pendingDuel, pendingRef } from './lib/share'
@@ -19,6 +19,8 @@ import { ExamPicker } from './screens/ExamPicker'
 import { Welcome } from './screens/Welcome'
 import { Home } from './screens/Home'
 import { PracticeSetup } from './screens/PracticeSetup'
+import { AreaPicker } from './screens/AreaPicker'
+import { MINI_SIMULACRO, currentArea, examQuestions } from './lib/areas'
 import { Practice, type PracticeAnswer } from './screens/Practice'
 import { WeeklyExam } from './screens/WeeklyExam'
 import { PracticeResult, WeeklyResultView, type PracticeSummary } from './screens/Results'
@@ -118,6 +120,7 @@ type PracticeMode = 'normal' | 'review' | 'daily' | 'duel'
 type View =
   | { name: 'home' }
   | { name: 'setup' }
+  | { name: 'area'; back: 'home' | 'setup' }
   | { name: 'stats' }
   | { name: 'practice'; questions: ShownQuestion[]; course: string | null; mode: PracticeMode; startedAt: number; duelId?: string }
   | { name: 'practiceResult'; questions: ShownQuestion[]; chosen: number[]; summary: PracticeSummary; course: string | null; mode: PracticeMode }
@@ -139,6 +142,7 @@ const DUEL_SIZE = 5
 function ExamApp({ exam, onChangeExam }: { exam: ExamConfig; onChangeExam: () => void }) {
   const auth = useAuth()
   const [progress, update, sync] = useProgress(exam.id, auth.userId)
+  const area = currentArea(exam, progress)
   const [view, setView] = useState<View>({ name: 'home' })
   const [demoMode, setDemoMode] = useState(false)
   const [sheet, setSheet] = useState<null | { kind: 'auth'; reason?: string } | { kind: 'account' } | { kind: 'invite' }>(null)
@@ -222,6 +226,14 @@ function ExamApp({ exam, onChangeExam }: { exam: ExamConfig; onChangeExam: () =>
   function startPractice(course: string | null, count: number, topic?: string) {
     const pool = exam.questions.filter((q) => (!course || q.course === course) && (!topic || q.topic === topic))
     setView({ name: 'practice', questions: pickQuestions(pool, count), course, mode: 'normal', startedAt: Date.now() })
+  }
+
+  function startSimulacro() {
+    setView({ name: 'practice', questions: examQuestions(exam, area, MINI_SIMULACRO), course: null, mode: 'normal', startedAt: Date.now() })
+  }
+
+  function pickArea(id: AreaId) {
+    update((p) => ({ ...p, extra: { ...p.extra, area: id } }))
   }
 
   function startReview() {
@@ -310,7 +322,7 @@ function ExamApp({ exam, onChangeExam }: { exam: ExamConfig; onChangeExam: () =>
     }
     if (progress.coins < exam.weekly.entryCost) return
     update((p) => ({ ...p, coins: p.coins - exam.weekly.entryCost }))
-    setView({ name: 'weekly', questions: pickQuestions(exam.questions, exam.weekly.questionCount) })
+    setView({ name: 'weekly', questions: examQuestions(exam, area, exam.weekly.questionCount) })
   }
 
   const finishWeekly = useCallback(
@@ -394,6 +406,10 @@ function ExamApp({ exam, onChangeExam }: { exam: ExamConfig; onChangeExam: () =>
   )
 
   function renderView(): ReactNode {
+  // Primera vez: el alumno elige su área antes de empezar.
+  if (exam.areas && !area && sync !== 'loading' && view.name === 'home') {
+    return <AreaPicker key="area-first" exam={exam} onPick={pickArea} />
+  }
   switch (view.name) {
     case 'home':
       return (
@@ -416,10 +432,37 @@ function ExamApp({ exam, onChangeExam }: { exam: ExamConfig; onChangeExam: () =>
           onInvite={() => (auth.userId ? setSheet({ kind: 'invite' }) : setSheet({ kind: 'auth', reason: 'Crea tu cuenta para invitar amigos y ganar monedas.' }))}
           onDuel={() => startDuel()}
           onOpenDuel={(duel) => setView({ name: 'duelResult', duel })}
+          area={area}
+          onChangeArea={() => setView({ name: 'area', back: 'home' })}
         />
       )
     case 'setup':
-      return <PracticeSetup key="setup" exam={exam} onBack={home} onStart={(course, count) => startPractice(course, count)} />
+      return (
+        <PracticeSetup
+          key="setup"
+          exam={exam}
+          area={area}
+          onBack={home}
+          onStart={(course, count) => startPractice(course, count)}
+          onSimulacro={startSimulacro}
+          onChangeArea={() => setView({ name: 'area', back: 'setup' })}
+        />
+      )
+    case 'area': {
+      const back = () => setView(view.back === 'home' ? { name: 'home' } : { name: 'setup' })
+      return (
+        <AreaPicker
+          key="area"
+          exam={exam}
+          current={area?.id}
+          onBack={back}
+          onPick={(id) => {
+            pickArea(id)
+            back()
+          }}
+        />
+      )
+    }
     case 'stats':
       return <Stats key="stats" exam={exam} progress={progress} onBack={home} />
     case 'practice':

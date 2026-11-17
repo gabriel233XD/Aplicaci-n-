@@ -12,6 +12,17 @@ export type Question = {
   source?: string
 }
 
+export type AreaId = 'A' | 'B' | 'C'
+
+export type Area = {
+  id: AreaId
+  name: string
+  /** Carreras de ejemplo (el alumno confirma la suya en el prospecto). */
+  examples: string
+  /** Preguntas por curso en el examen real; null = por confirmar. */
+  distribution: Record<string, number> | null
+}
+
 export type ExamConfig = {
   id: string
   name: string
@@ -19,6 +30,8 @@ export type ExamConfig = {
   description: string
   available: boolean
   questions: Question[]
+  /** Áreas del examen (si las tiene). */
+  areas?: Area[]
   weekly: {
     questionCount: number
     minutes: number
@@ -69,6 +82,8 @@ export type ProgressExtra = {
   history?: Record<string, Record<string, [number, number]>>
   /** Hechos que desbloquean logros especiales. */
   flags?: { perfect?: boolean; duelWon?: boolean; invited?: boolean }
+  /** Área a la que postula el alumno. */
+  area?: AreaId
 }
 
 /** Una pregunta tal como se muestra: con las opciones barajadas. */
