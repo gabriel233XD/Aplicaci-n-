@@ -28,7 +28,7 @@ App para prepararse para el examen de admisión **jugando**. Empezamos con la **
 
 **Cómo activarlas:**
 1. Crea un proyecto gratis en [supabase.com](https://supabase.com).
-2. En **SQL Editor**, pega y ejecuta `supabase/migrations/0001_cuentas.sql` y luego `0002_eliminar_cuenta.sql`.
+2. En **SQL Editor**, pega y ejecuta `supabase/migrations/0001_cuentas.sql` luego `0002_eliminar_cuenta.sql` y `0003_dar_premium.sql`.
 3. En **Authentication → URL Configuration**, pon la dirección de tu app (por ejemplo `https://ingresaya.vercel.app`) como *Site URL*.
 4. Copia `.env.example` como `.env.local` (para probar en tu computadora) y, en Vercel, agrega las mismas variables: `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` (están en Project Settings → API).
 5. Redes sociales (opcional): actívalas en Supabase (**Authentication → Sign In / Providers**) y pon en `VITE_AUTH_PROVIDERS` las que activaste, por ejemplo `google,facebook,x`. Cada red pide crear una "app" en su página de desarrolladores y copiar su *Client ID* y *Secret* en Supabase. Como dirección de retorno (*callback URL*) se usa la que muestra Supabase (`https://<tu-proyecto>.supabase.co/auth/v1/callback`):
@@ -36,9 +36,9 @@ App para prepararse para el examen de admisión **jugando**. Empezamos con la **
    - **Facebook**: [developers.facebook.com](https://developers.facebook.com) → Crear app → "Inicio de sesión con Facebook". Para que la use el público, la app debe pasar a modo "Activo".
    - **X**: [developer.x.com](https://developer.x.com) → Proyecto y app → "User authentication settings" con OAuth 2.0. En Supabase usa el proveedor **X / Twitter (OAuth 2.0)**.
 
-Para dar Premium a un alumno (mientras no esté el pago automático), en el SQL Editor:
+Para dar Premium a un alumno (mientras no esté el pago automático), ejecuta una vez `supabase/migrations/0003_dar_premium.sql` y luego, en el SQL Editor:
 ```sql
-update profiles set premium_until = now() + interval '30 days' where alias = 'ApodoDelAlumno';
+select dar_premium('alumno@gmail.com', 30);  -- 30 días; si ya tenía Premium, se suman
 ```
 
 ## 🎓 Tutor IA ("Profe IA")
