@@ -1,3 +1,4 @@
+import { Minus, Target, TrendingDown, TrendingUp } from 'lucide-react'
 import { motion } from 'framer-motion'
 import type { ShownQuestion, WeeklyResult } from '../types'
 import { CoinBurst, CountUp, Ring, Screen } from '../ui'
@@ -74,20 +75,20 @@ export function PracticeResult({
               {summary.correct} de {summary.total}
             </span>
           </Ring>
-          <h2>{pct >= 70 ? '¡Muy bien! Sigue así.' : pct >= 40 ? '¡Vas bien, sigue practicando!' : 'Cada error es una lección 💪'}</h2>
+          <h2>{pct >= 70 ? '¡Muy bien! Sigue así.' : pct >= 40 ? '¡Vas bien, sigue practicando!' : 'Cada error es una lección'}</h2>
           <div className="coins-earned">
             +<CountUp value={totalCoins} /> <span className="coin coin-lg" aria-hidden="true" />
           </div>
           <ul className="earn compact">
             <li><span>Respuestas correctas sin pista</span><b>+{summary.coinsCorrect}</b></li>
             {summary.passBonus > 0 && <li><span>Bonus por 70% o más</span><b>+{summary.passBonus}</b></li>}
-            {summary.streakBonus > 0 && <li><span>Racha de {summary.streak} día(s) 🔥</span><b>+{summary.streakBonus}</b></li>}
+            {summary.streakBonus > 0 && <li><span>Racha de {summary.streak} día(s)</span><b>+{summary.streakBonus}</b></li>}
           </ul>
         </motion.section>
 
         {weak.length > 0 && (
           <motion.section variants={itemVariants} className="card">
-            <h3>🎯 Repasa estos temas</h3>
+            <h3 className="h-icon"><Target size={20} /> Repasa estos temas</h3>
             <WeakList topics={weak} />
           </motion.section>
         )}
@@ -149,7 +150,8 @@ export function WeeklyResultView({
           </motion.div>
           {diff !== null && (
             <div className={`trend ${diff > 0 ? 'up' : diff < 0 ? 'down' : ''}`}>
-              {diff > 0 ? `📈 Subiste ${diff} puntos` : diff < 0 ? `📉 Bajaste ${-diff} puntos` : '➖ Igual que la vez anterior'}
+              {diff > 0 ? <TrendingUp size={18} /> : diff < 0 ? <TrendingDown size={18} /> : <Minus size={18} />}
+              {diff > 0 ? `Subiste ${diff} puntos` : diff < 0 ? `Bajaste ${-diff} puntos` : 'Igual que la vez anterior'}
             </div>
           )}
           {bonus > 0 && <div className="coins-earned">¡Top 10! +{bonus} <span className="coin coin-lg" aria-hidden="true" /></div>}
@@ -158,7 +160,7 @@ export function WeeklyResultView({
 
         {weak.length > 0 && (
           <motion.section variants={itemVariants} className="card">
-            <h3>🎯 Practica esta semana</h3>
+            <h3 className="h-icon"><Target size={20} /> Practica esta semana</h3>
             <WeakList topics={weak} />
           </motion.section>
         )}

@@ -1,6 +1,10 @@
 import { animate, motion, useMotionValue, useTransform, type HTMLMotionProps } from 'framer-motion'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { courseMeta, courseStyle } from './lib/ui-helpers'
+import {
+  BookOpen, Dna, Divide, Flame, FlaskConical, Landmark, MessageSquareText, Puzzle, Triangle, Variable, Zap,
+  type LucideIcon,
+} from 'lucide-react'
+import { courseStyle } from './lib/ui-helpers'
 
 /** Contenedor de cada pantalla: entra deslizando y sale desvaneciéndose. */
 export function Screen({ children, className = '', ...rest }: HTMLMotionProps<'div'> & { children: ReactNode }) {
@@ -65,7 +69,7 @@ export function StreakPill({ streak }: { streak: number }) {
         animate={streak > 0 ? { rotate: [0, -8, 8, -4, 0], scale: [1, 1.15, 1] } : {}}
         transition={{ duration: 1.2, repeat: Infinity, repeatDelay: 2.5 }}
       >
-        🔥
+        <Flame size={18} strokeWidth={2.5} />
       </motion.span>
       {streak}
     </span>
@@ -125,10 +129,27 @@ export function CoinBurst({ count = 14 }: { count?: number }) {
   )
 }
 
+const COURSE_ICONS: Record<string, LucideIcon> = {
+  'Razonamiento Matemático': Puzzle,
+  'Razonamiento Verbal': MessageSquareText,
+  Aritmética: Divide,
+  Álgebra: Variable,
+  Geometría: Triangle,
+  Biología: Dna,
+  Química: FlaskConical,
+  Física: Zap,
+  'Historia y Cultura': Landmark,
+}
+
+const ICON_SIZE = { sm: 17, md: 22, lg: 28 }
+
 export function CourseIcon({ course, size = 'md' }: { course: string | null; size?: 'sm' | 'md' | 'lg' }) {
   return (
     <span className={`course-icon course-icon-${size}`} style={courseStyle(course)} aria-hidden="true">
-      {courseMeta(course).icon}
+      {(() => {
+        const Icon = (course && COURSE_ICONS[course]) || BookOpen
+        return <Icon size={ICON_SIZE[size]} strokeWidth={2.4} />
+      })()}
     </span>
   )
 }

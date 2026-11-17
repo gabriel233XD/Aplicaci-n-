@@ -1,3 +1,4 @@
+import { Check, Flame, Lightbulb, Sparkles, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
 import type { ShownQuestion } from '../types'
@@ -33,6 +34,11 @@ export function Practice({ questions, onFinish, onQuit }: Props) {
   function choose(original: number) {
     if (answered) return
     setChosen(original)
+    try {
+      navigator.vibrate?.(original === question.answer ? 15 : [30, 40, 30])
+    } catch {
+      // Sin vibración disponible: no pasa nada.
+    }
     setCombo(original === question.answer ? combo + 1 : 0)
   }
 
@@ -51,7 +57,7 @@ export function Practice({ questions, onFinish, onQuit }: Props) {
   return (
     <Screen className="quiz" style={courseStyle(question.course)}>
       <header className="topbar">
-        <motion.button className="link" whileTap={tap} onClick={onQuit}>✕ Salir</motion.button>
+        <motion.button className="link" whileTap={tap} onClick={onQuit}><X size={18} strokeWidth={2.6} /> Salir</motion.button>
         <div className="quiz-meta">
           <AnimatePresence>
             {combo >= 2 && (
@@ -63,7 +69,7 @@ export function Practice({ questions, onFinish, onQuit }: Props) {
                 exit={{ scale: 0.4, opacity: 0 }}
                 transition={{ type: 'spring', stiffness: 500, damping: 14 }}
               >
-                🔥 x{combo}
+                <Flame size={15} strokeWidth={2.6} /> x{combo}
               </motion.span>
             )}
           </AnimatePresence>
@@ -122,7 +128,7 @@ export function Practice({ questions, onFinish, onQuit }: Props) {
                   transition={answered ? { duration: 0.45 } : { delay: 0.05 + pos * 0.05 }}
                   whileTap={answered ? undefined : tap}
                 >
-                  <span className="letter">{answered && isAnswer ? '✓' : answered && isPicked ? '✕' : LETTERS[pos]}</span>
+                  <span className="letter">{answered && isAnswer ? <Check size={18} strokeWidth={3} /> : answered && isPicked ? <X size={18} strokeWidth={3} /> : LETTERS[pos]}</span>
                   <span>{question.options[orig]}</span>
                   {answered && isAnswer && isPicked && !showHint && (
                     <motion.span
@@ -148,7 +154,7 @@ export function Practice({ questions, onFinish, onQuit }: Props) {
                 exit={{ opacity: 0, height: 0 }}
                 onClick={() => setShowHint(true)}
               >
-                💡 Ver pista <span className="muted small">(esta pregunta no dará moneda)</span>
+                <Lightbulb size={18} /> Ver pista <span className="muted small">(esta pregunta no dará moneda)</span>
               </motion.button>
             )}
             {showHint && !answered && (
@@ -159,7 +165,7 @@ export function Practice({ questions, onFinish, onQuit }: Props) {
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
               >
-                <div className="hint-inner">💡 {question.hint}</div>
+                <div className="hint-inner"><Lightbulb size={20} className="hint-ico" /> <span>{question.hint}</span></div>
               </motion.div>
             )}
           </AnimatePresence>
@@ -177,7 +183,7 @@ export function Practice({ questions, onFinish, onQuit }: Props) {
             transition={{ type: 'spring', stiffness: 380, damping: 36 }}
           >
             <div className="sheet-inner">
-              <strong className="sheet-title">{isCorrect ? '¡Correcto! 🎉' : 'Casi… revisa la explicación'}</strong>
+              <strong className="sheet-title">{isCorrect ? <><Sparkles size={22} /> ¡Correcto!</> : 'Casi… revisa la explicación'}</strong>
               <p>{question.explanation}</p>
               <motion.button whileTap={tap} className={`btn big full ${isCorrect ? 'btn-ok' : 'btn-bad'}`} onClick={next}>
                 {last ? 'Ver resultados' : 'Siguiente →'}

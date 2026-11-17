@@ -1,3 +1,4 @@
+import { LayoutGrid, Timer } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useRef, useState } from 'react'
 import { CourseIcon, Screen } from '../ui'
@@ -69,11 +70,11 @@ export function WeeklyExam({ questions, minutes, onFinish }: Props) {
     <Screen className="quiz" style={courseStyle(question.course)}>
       <header className="topbar exam-bar">
         <span className={`timer ${left < 600 ? 'urgent' : ''}`}>
-          <motion.span animate={left < 600 ? { scale: [1, 1.15, 1] } : {}} transition={{ duration: 1, repeat: Infinity }}>⏱</motion.span>{' '}
+          <motion.span animate={left < 600 ? { scale: [1, 1.15, 1] } : {}} transition={{ duration: 1, repeat: Infinity }} className="timer-ico"><Timer size={20} strokeWidth={2.6} /></motion.span>{' '}
           {formatTime(left)}
         </span>
-        <motion.button className="pill grid-toggle" whileTap={tap} onClick={() => setShowGrid(!showGrid)} aria-expanded={showGrid}>
-          {answeredCount}/{questions.length} ▦
+        <motion.button className="pill grid-toggle" whileTap={tap} onClick={() => setShowGrid(!showGrid)} aria-expanded={showGrid} aria-label="Ver todas las preguntas">
+          <LayoutGrid size={16} /> {answeredCount}/{questions.length}
         </motion.button>
       </header>
       <div className="progress-bar thin">

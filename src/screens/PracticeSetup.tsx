@@ -1,3 +1,4 @@
+import { ArrowLeft } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useState } from 'react'
 import type { ExamConfig } from '../types'
@@ -23,7 +24,7 @@ export function PracticeSetup({ exam, onStart, onBack }: Props) {
   return (
     <Screen>
       <header className="topbar">
-        <motion.button className="link" whileTap={tap} onClick={onBack}>← Volver</motion.button>
+        <motion.button className="link" whileTap={tap} onClick={onBack}><ArrowLeft size={18} strokeWidth={2.6} /> Volver</motion.button>
       </header>
 
       <h1 className="page-title">¿Qué quieres practicar?</h1>

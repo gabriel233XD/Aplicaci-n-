@@ -1,3 +1,4 @@
+import { BookOpen, Check, ChevronDown, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useState } from 'react'
 import type { ShownQuestion } from '../types'
@@ -13,13 +14,13 @@ export function Review({ questions, chosen }: { questions: ShownQuestion[]; chos
   return (
     <section className="card">
       <div className="review-head">
-        <h3>📖 Revisión</h3>
+        <h3 className="h-icon"><BookOpen size={20} /> Revisión</h3>
         <label className="small switch">
           <input id="only-wrong" type="checkbox" checked={onlyWrong} onChange={() => setOnlyWrong(!onlyWrong)} />
           Solo errores
         </label>
       </div>
-      {items.length === 0 && <p className="muted small">¡No tuviste errores! 🎉</p>}
+      {items.length === 0 && <p className="muted small">¡No tuviste errores!</p>}
       <div className="review-list">
         {items.map(({ question, chosen: c, n }) => {
           const ok = c === question.answer
@@ -27,11 +28,11 @@ export function Review({ questions, chosen }: { questions: ShownQuestion[]; chos
           return (
             <div key={question.id} className={`review-item ${ok ? 'ok' : 'bad'}`}>
               <button className="review-q" onClick={() => setOpenId(open ? null : question.id)} aria-expanded={open}>
-                <span className="review-mark">{ok ? '✓' : '✕'}</span>
+                <span className="review-mark">{ok ? <Check size={14} strokeWidth={3.2} /> : <X size={14} strokeWidth={3.2} />}</span>
                 <span className="review-text">
                   {n}. {question.statement}
                 </span>
-                <motion.span animate={{ rotate: open ? 180 : 0 }} className="muted">⌄</motion.span>
+                <motion.span animate={{ rotate: open ? 180 : 0 }} className="muted chev"><ChevronDown size={18} /></motion.span>
               </button>
               <AnimatePresence initial={false}>
                 {open && (

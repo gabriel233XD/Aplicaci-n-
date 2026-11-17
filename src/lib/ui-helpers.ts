@@ -17,20 +17,20 @@ export const tap = { scale: 0.97 }
 
 // ── Identidad visual de cada curso ──
 
-const COURSE_META: Record<string, { icon: string; hue: number }> = {
-  'Razonamiento Matemático': { icon: '🧩', hue: 265 },
-  'Razonamiento Verbal': { icon: '💬', hue: 205 },
-  Aritmética: { icon: '➗', hue: 25 },
-  Álgebra: { icon: 'x²', hue: 330 },
-  Geometría: { icon: '📐', hue: 45 },
-  Biología: { icon: '🧬', hue: 140 },
-  Química: { icon: '⚗️', hue: 178 },
-  Física: { icon: '⚡', hue: 220 },
-  'Historia y Cultura': { icon: '🏺', hue: 12 },
+const COURSE_META: Record<string, { hue: number }> = {
+  'Razonamiento Matemático': { hue: 265 },
+  'Razonamiento Verbal': { hue: 205 },
+  Aritmética: { hue: 25 },
+  Álgebra: { hue: 330 },
+  Geometría: { hue: 45 },
+  Biología: { hue: 140 },
+  Química: { hue: 178 },
+  Física: { hue: 220 },
+  'Historia y Cultura': { hue: 12 },
 }
 
 export function courseMeta(course: string | null) {
-  return (course && COURSE_META[course]) || { icon: '📚', hue: 172 }
+  return (course && COURSE_META[course]) || { hue: 172 }
 }
 
 export function courseStyle(course: string | null): CSSProperties {

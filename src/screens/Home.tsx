@@ -1,3 +1,4 @@
+import { ArrowLeft, ArrowRight, ChartColumn, CircleCheck, CirclePlay, Coins, Crown, FileText, PencilLine, Target, Timer, Trophy } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
 import type { ExamConfig, Progress } from '../types'
@@ -44,10 +45,10 @@ export function Home({ exam, progress, demoMode, onToggleDemo, onPractice, onPra
   const courseOf = (topic: string) => exam.questions.find((q) => q.topic === topic)?.course ?? null
 
   return (
-    <Screen>
+    <Screen className="home">
       <header className="topbar">
         <motion.button className="link" whileTap={tap} onClick={onChangeExam}>
-          ← {exam.name}
+          <ArrowLeft size={18} strokeWidth={2.6} /> {exam.name}
         </motion.button>
         <div className="pills">
           <CoinPill coins={progress.coins} />
@@ -55,9 +56,9 @@ export function Home({ exam, progress, demoMode, onToggleDemo, onPractice, onPra
         </div>
       </header>
 
-      <motion.div className="stack" variants={listVariants} initial="hidden" animate="show">
+      <motion.div className="stack home-grid" variants={listVariants} initial="hidden" animate="show">
         <motion.div variants={itemVariants} className="greeting">
-          <h1>¡Hola, postulante! 👋</h1>
+          <h1>¡Hola, postulante!</h1>
           <p className="muted">
             {progress.answered === 0
               ? 'Empieza con una práctica corta para ganar tus primeras monedas.'
@@ -70,13 +71,13 @@ export function Home({ exam, progress, demoMode, onToggleDemo, onPractice, onPra
           <div className="event-tag">EVENTO DE CADA DOMINGO</div>
           <h2 className="event-title">Examen de Admisión</h2>
           <div className="event-facts">
-            <span>📝 {exam.weekly.questionCount} preguntas</span>
-            <span>⏱ {exam.weekly.minutes / 60} horas</span>
-            <span>🏆 Ranking de Ica</span>
+            <span><FileText size={15} /> {exam.weekly.questionCount} preguntas</span>
+            <span><Timer size={15} /> {exam.weekly.minutes / 60} horas</span>
+            <span><Trophy size={15} /> Ranking de Ica</span>
           </div>
 
           {alreadyDone ? (
-            <p className="event-note">✅ Ya diste el examen de esta semana. ¡Nos vemos el próximo domingo!</p>
+            <p className="event-note with-icon"><CircleCheck size={18} /> Ya diste el examen de esta semana. ¡Nos vemos el próximo domingo!</p>
           ) : open ? (
             <>
               <motion.button className="btn btn-gold" disabled={!canPay} whileTap={canPay ? tap : undefined} onClick={onWeekly}>
@@ -111,17 +112,17 @@ export function Home({ exam, progress, demoMode, onToggleDemo, onPractice, onPra
         </motion.section>
 
         <motion.button variants={itemVariants} whileTap={tap} whileHover={{ y: -2 }} className="cta" onClick={onPractice}>
-          <span className="cta-icon" aria-hidden="true">✏️</span>
+          <span className="cta-icon" aria-hidden="true"><PencilLine size={26} strokeWidth={2.4} /></span>
           <span className="cta-text">
             <strong>Practicar</strong>
             <span>Elige el curso y cuántas preguntas</span>
           </span>
-          <span className="cta-arrow" aria-hidden="true">→</span>
+          <span className="cta-arrow" aria-hidden="true"><ArrowRight size={24} strokeWidth={2.6} /></span>
         </motion.button>
 
         {weak.length > 0 && (
           <motion.section variants={itemVariants} className="card">
-            <h3>🎯 Tus temas débiles</h3>
+            <h3 className="h-icon"><Target size={20} /> Tus temas débiles</h3>
             <div className="stack-sm">
               {weak.map((t) => (
                 <motion.button key={t.topic} whileTap={tap} className="row-btn" onClick={() => onPracticeTopic(t.topic)}>
@@ -141,7 +142,7 @@ export function Home({ exam, progress, demoMode, onToggleDemo, onPractice, onPra
 
         {last && (
           <motion.section variants={itemVariants} className="card last-exam">
-            <h3>📊 Tu último examen</h3>
+            <h3 className="h-icon"><ChartColumn size={20} /> Tu último examen</h3>
             <div className="stat-row">
               <div>
                 <strong>{last.score}</strong>
@@ -162,21 +163,21 @@ export function Home({ exam, progress, demoMode, onToggleDemo, onPractice, onPra
         )}
 
         <motion.section variants={itemVariants} className="card">
-          <h3>Cómo ganar monedas</h3>
+          <h3 className="h-icon"><Coins size={20} /> Cómo ganar monedas</h3>
           <ul className="earn">
             <li><span>Respuesta correcta</span><b>+1</b></li>
             <li><span>Práctica con 70% o más</span><b>+5</b></li>
-            <li><span>Racha diaria 🔥</span><b>+5</b></li>
+            <li><span>Racha diaria</span><b>+5</b></li>
             <li><span>Top 10 del domingo</span><b>+50</b></li>
           </ul>
           <button className="btn btn-ghost full" disabled>
-            🎬 Ver anuncio (+20) · disponible en la app de Android
+            <CirclePlay size={18} /> Ver anuncio (+20) · disponible en la app de Android
           </button>
         </motion.section>
 
         <motion.section variants={itemVariants} className="card premium">
           <div className="premium-head">
-            <h3>⭐ Premium</h3>
+            <h3 className="h-icon"><Crown size={20} /> Premium</h3>
             <span className="price">S/ 5<small>/mes</small></span>
           </div>
           <ul className="checks">

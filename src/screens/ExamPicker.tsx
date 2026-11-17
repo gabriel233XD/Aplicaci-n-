@@ -1,3 +1,4 @@
+import { GraduationCap } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { exams } from '../data/exams'
 import { Screen } from '../ui'
@@ -14,7 +15,7 @@ export function ExamPicker({ onPick }: { onPick: (id: string) => void }) {
           animate={{ scale: 1, rotate: 0 }}
           transition={{ type: 'spring', stiffness: 260, damping: 14, delay: 0.1 }}
         >
-          🎓
+          <GraduationCap size={56} strokeWidth={2} />
         </motion.div>
         <motion.h1
           className="hero-title"
