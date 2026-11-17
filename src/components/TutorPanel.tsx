@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { Crown, GraduationCap, LogIn, SendHorizontal, Sparkles, Square, X } from 'lucide-react'
+import { Camera, Crown, GraduationCap, LogIn, SendHorizontal, Sparkles, Square, X } from 'lucide-react'
+import { prepareImage, type PreparedImage } from '../lib/image'
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
 import { TutorError, askTutor, countTutorQuestion, tutorMode, tutorUsedToday, type TutorErrorKind } from '../lib/tutor'
 import { useAuth } from '../lib/auth'
@@ -23,6 +24,7 @@ const ERROR_COPY: Record<TutorErrorKind, string> = {
   login: 'Tu sesión se cerró. Vuelve a iniciar sesión para seguir usando el tutor.',
   limit: 'Ya usaste todas tus consultas de hoy. Mañana tienes más.',
   premium: 'El Tutor libre es una función Premium.',
+  image: 'La foto es muy pesada. Prueba con otra o recórtala.',
 }
 
 /** Muestra texto simple con **negritas** y listas con guiones. */
@@ -70,6 +72,10 @@ export function TutorPanel({ question, chosen = null, free, onClose }: Props) {
   const [mode, setMode] = useState<'sample' | 'server' | null>(null)
   const [quota, setQuota] = useState<{ limit: number; used: number } | null>(null)
   const [showLogin, setShowLogin] = useState(false)
+  // Foto de una pregunta (Tutor libre): la pendiente de enviar y la que ya está en la conversación.
+  const [photo, setPhoto] = useState<PreparedImage | null>(null)
+  const [convoImage, setConvoImage] = useState<{ img: PreparedImage; turn: number } | null>(null)
+  const [photoError, setPhotoError] = useState<string | null>(null)
   const ctl = useRef<AbortController | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const opened = useRef(false)
@@ -96,7 +102,8 @@ export function TutorPanel({ question, chosen = null, free, onClose }: Props) {
   }, [serverQuota, auth.session])
 
   async function send(message: string, history: TutorTurn[]) {
-    const text = message.trim().slice(0, TUTOR_LIMITS.maxCharsPerTurn)
+    const attached = photo
+    const text = (message.trim() || (attached ? 'Explícame esta pregunta paso a paso.' : '')).slice(0, TUTOR_LIMITS.maxCharsPerTurn)
     if (!text || busy) return
     if (needsLogin) return setShowLogin(true)
     if (locked) return
@@ -105,6 +112,11 @@ export function TutorPanel({ question, chosen = null, free, onClose }: Props) {
       return
     }
     const next = [...history, { role: 'user' as const, content: text }]
+    const image = attached ? { img: attached, turn: next.length - 1 } : convoImage
+    if (attached) {
+      setConvoImage(image)
+      setPhoto(null)
+    }
     setTurns(next)
     setDraft('')
     setError(null)
@@ -120,6 +132,7 @@ export function TutorPanel({ question, chosen = null, free, onClose }: Props) {
         signal: ctl.current.signal,
         token: auth.session?.access_token,
         free: !!free,
+        image: image ? { mediaType: image.img.mediaType, data: image.img.data, blob: image.img.blob, turn: image.turn } : undefined,
         onRemaining: (n) => setQuota((q) => (q ? { ...q, used: q.limit - n } : q)),
       })
       setTurns([...next, { role: 'assistant', content: answer }])
@@ -198,7 +211,7 @@ export function TutorPanel({ question, chosen = null, free, onClose }: Props) {
             <div className="bubble assistant">
               <p>
                 ¡Hola! Soy tu <strong>Tutor libre</strong>. Pregúntame cualquier tema del examen: te lo explico desde lo básico, con
-                ejemplos, y si quieres te doy preguntas para practicar.
+                ejemplos, y si quieres te doy preguntas para practicar. También puedes mandarme la <strong>foto de una pregunta</strong> 📸 de tu libro o academia.
               </p>
             </div>
           )}
@@ -232,7 +245,14 @@ export function TutorPanel({ question, chosen = null, free, onClose }: Props) {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
             >
-              {t.role === 'assistant' ? <RichText text={t.content} /> : t.content}
+              {t.role === 'assistant' ? (
+                <RichText text={t.content} />
+              ) : (
+                <>
+                  {convoImage?.turn === i && <img className="bubble-photo" src={convoImage.img.preview} alt="Foto de la pregunta" />}
+                  {t.content}
+                </>
+              )}
             </motion.div>
           ))}
 
@@ -286,6 +306,18 @@ export function TutorPanel({ question, chosen = null, free, onClose }: Props) {
             )}
           </AnimatePresence>
 
+          {photo && (
+            <div className="photo-pending">
+              <img src={photo.preview} alt="Foto lista para enviar" />
+              <span className="small">Foto lista. Escribe tu duda o toca enviar.</span>
+              <button className="toast-close" onClick={() => setPhoto(null)} aria-label="Quitar foto">
+                <X size={16} />
+              </button>
+            </div>
+          )}
+          {photoError && <p className="form-error small">{photoError}</p>}
+          {free && convoImage && !busy && <p className="tutor-fine">Una foto por conversación. Para otra pregunta, cierra y abre el tutor.</p>}
+
           {(left === 0 || error === 'limit') && !busy ? (
             <p className="tutor-limit">
               Usaste tus {dailyLimit} consultas de hoy. Mañana tienes {dailyLimit} más.
@@ -299,6 +331,29 @@ export function TutorPanel({ question, chosen = null, free, onClose }: Props) {
                 void send(draft, turns)
               }}
             >
+              {free && !locked && !needsLogin && (
+                <label className={`send camera ${convoImage || busy ? 'off' : ''}`} title="Foto de una pregunta">
+                  <Camera size={20} />
+                  <span className="sr-only">Enviar foto de una pregunta</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    hidden
+                    disabled={!!convoImage || busy}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0]
+                      e.target.value = ''
+                      if (!file) return
+                      setPhotoError(null)
+                      try {
+                        setPhoto(await prepareImage(file))
+                      } catch (err) {
+                        setPhotoError((err as Error).message === 'too_big' ? 'La foto es muy pesada (máximo 15 MB).' : 'No se pudo leer esa imagen. Prueba con otra foto.')
+                      }
+                    }}
+                  />
+                </label>
+              )}
               <label htmlFor="tutor-input" className="sr-only">
                 Escribe tu duda
               </label>
@@ -316,7 +371,7 @@ export function TutorPanel({ question, chosen = null, free, onClose }: Props) {
                   <Square size={16} fill="currentColor" />
                 </motion.button>
               ) : (
-                <motion.button type="submit" whileTap={tap} className="send" disabled={!draft.trim()} aria-label="Enviar">
+                <motion.button type="submit" whileTap={tap} className="send" disabled={!draft.trim() && !photo} aria-label="Enviar">
                   <SendHorizontal size={20} />
                 </motion.button>
               )}

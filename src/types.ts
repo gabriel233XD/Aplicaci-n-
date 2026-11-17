@@ -50,6 +50,23 @@ export type Progress = {
   answered: number
   topicStats: Record<string, TopicStat>
   weeklyResults: WeeklyResult[]
+  extra: ProgressExtra
+}
+
+/** Datos extra del progreso (se guardan en la columna `extra` de la base de datos). */
+export type ProgressExtra = {
+  /** Logros desbloqueados: id → fecha (AAAA-MM-DD). */
+  achievements?: Record<string, string>
+  /** Preguntas falladas para repasar (repaso espaciado): id → caja (0-2) y fecha en que toca. */
+  mistakes?: Record<string, { box: number; due: string }>
+  /** Cuántas preguntas falladas ya se dominaron con el repaso. */
+  mastered?: number
+  /** Pregunta del día: último día respondida y si acertó. */
+  daily?: { day: string; correct: boolean }
+  /** Historial por día: curso → [respondidas, correctas]. Se guardan los últimos 70 días. */
+  history?: Record<string, Record<string, [number, number]>>
+  /** Hechos que desbloquean logros especiales. */
+  flags?: { perfect?: boolean; duelWon?: boolean; invited?: boolean }
 }
 
 /** Una pregunta tal como se muestra: con las opciones barajadas. */

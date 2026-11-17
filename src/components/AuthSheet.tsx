@@ -323,6 +323,8 @@ export function AccountSheet({ onClose }: { onClose: () => void }) {
         </motion.button>
       </form>
 
+      {auth.profile?.referralCode !== undefined && <SchoolForm />}
+
       <motion.button
         whileTap={tap}
         className="btn btn-ghost full danger"
@@ -426,5 +428,54 @@ export function ChooseAliasSheet({ onClose }: { onClose: () => void }) {
         Ahora no (te llamaremos {auth.profile?.alias})
       </button>
     </Sheet>
+  )
+}
+
+/** Colegio del alumno, para el ranking de colegios. */
+function SchoolForm() {
+  const auth = useAuth()
+  const [school, setSchool] = useState(auth.profile?.school ?? '')
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
+  const unchanged = school.trim() === (auth.profile?.school ?? '')
+
+  async function save(e: FormEvent) {
+    e.preventDefault()
+    const value = school.trim()
+    if (value && (value.length < 3 || value.length > 60)) return setMessage({ ok: false, text: 'Escribe el nombre de tu colegio (entre 3 y 60 letras).' })
+    setBusy(true)
+    try {
+      await auth.updateSchool(value)
+      setMessage({ ok: true, text: value ? 'Colegio guardado. Tus puntajes del domingo sumarán a su ranking.' : 'Colegio quitado.' })
+    } catch (err) {
+      setMessage({ ok: false, text: authErrorMessage(err) })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <form className="auth-form" onSubmit={save} noValidate>
+      <div className="field">
+        <label htmlFor="account-school">Tu colegio (para el ranking de colegios)</label>
+        <input
+          id="account-school"
+          value={school}
+          onChange={(e) => setSchool(e.target.value)}
+          placeholder="Ej: I.E. San Luis Gonzaga"
+          maxLength={60}
+          autoComplete="organization"
+        />
+        <span className="hint-text">Escríbelo como lo conocen todos, para que tus compañeros sumen al mismo colegio.</span>
+      </div>
+      {message && (
+        <p className={message.ok ? 'form-notice' : 'form-error'} role="status">
+          {message.text}
+        </p>
+      )}
+      <motion.button whileTap={tap} type="submit" className="btn btn-ghost full" disabled={busy || unchanged}>
+        Guardar colegio
+      </motion.button>
+    </form>
   )
 }

@@ -62,7 +62,7 @@ function isTurn(t: unknown): t is TutorTurn {
 }
 
 export async function POST(request: Request): Promise<Response> {
-  let body: { context?: unknown; turns?: unknown; mode?: unknown }
+  let body: { context?: unknown; turns?: unknown; mode?: unknown; image?: unknown; imageTurn?: unknown }
   try {
     body = await request.json()
   } catch {
@@ -74,14 +74,38 @@ export async function POST(request: Request): Promise<Response> {
   if (!context || turns.length === 0 || turns.length > TUTOR_LIMITS.maxTurns) return bad(400, 'Conversación inválida')
   if (turns[0].role !== 'user' || turns[turns.length - 1].role !== 'user') return bad(400, 'La conversación debe empezar y terminar con el alumno')
 
+  // Foto de una pregunta: solo en el Tutor libre (Premium), JPEG/PNG/WebP de hasta ~2 MB.
+  let image: { media_type: 'image/jpeg' | 'image/png' | 'image/webp'; data: string } | null = null
+  let imageTurn = -1
+  if (body.image) {
+    const img = body.image as { mediaType?: unknown; data?: unknown }
+    const okType = img.mediaType === 'image/jpeg' || img.mediaType === 'image/png' || img.mediaType === 'image/webp'
+    if (body.mode !== 'free' || !okType || typeof img.data !== 'string' || !/^[A-Za-z0-9+/=]+$/.test(img.data.slice(0, 200))) {
+      return bad(400, 'Imagen inválida')
+    }
+    if (img.data.length > 2_800_000) return bad(413, 'Imagen demasiado grande')
+    imageTurn = typeof body.imageTurn === 'number' ? body.imageTurn : -1
+    if (imageTurn < 0 || imageTurn >= turns.length || turns[imageTurn].role !== 'user') return bad(400, 'Imagen inválida')
+    image = { media_type: img.mediaType as 'image/jpeg', data: img.data }
+  }
+
   // La cuenta se revisa después de validar la conversación, para no gastar consultas en pedidos inválidos.
   const account = await checkAccount(request, body.mode === 'free')
   if (account instanceof Response) return account
 
-  const messages: Anthropic.MessageParam[] = turns.map((t, i) => ({
-    role: t.role,
-    content: (i === 0 ? `${context}\n\n---\n\n` : '') + t.content.slice(0, TUTOR_LIMITS.maxCharsPerTurn * 2),
-  }))
+  const messages: Anthropic.MessageParam[] = turns.map((t, i) => {
+    const text = (i === 0 ? `${context}\n\n---\n\n` : '') + t.content.slice(0, TUTOR_LIMITS.maxCharsPerTurn * 2)
+    if (image && i === imageTurn) {
+      return {
+        role: 'user' as const,
+        content: [
+          { type: 'image' as const, source: { type: 'base64' as const, media_type: image.media_type, data: image.data } },
+          { type: 'text' as const, text: `${text}\n\n(El alumno adjuntó la foto de una pregunta. Léela con cuidado; si no se entiende bien, pídele otra foto más clara.)` },
+        ],
+      }
+    }
+    return { role: t.role, content: text }
+  })
 
   const encoder = new TextEncoder()
   const stream = new ReadableStream<Uint8Array>({

@@ -2,7 +2,13 @@ import type { Session } from '@supabase/supabase-js'
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { accountsEnabled, supabase, type SocialProvider } from './supabase'
 
-export type Profile = { alias: string; premium: boolean }
+export type Profile = {
+  alias: string
+  premium: boolean
+  /** Solo existen si ya se ejecutó la migración 0004. */
+  referralCode?: string
+  school?: string | null
+}
 
 type AuthState = {
   enabled: boolean
@@ -22,6 +28,8 @@ type AuthState = {
   setNewPassword: (password: string) => Promise<void>
   cancelRecovery: () => void
   updateAlias: (alias: string) => Promise<void>
+  updateSchool: (school: string) => Promise<void>
+  reloadProfile: () => Promise<void>
   signOut: () => Promise<void>
   /** Elimina la cuenta y todos sus datos (no se puede deshacer). */
   deleteAccount: () => Promise<void>
@@ -85,8 +93,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setProfile(null)
       return
     }
-    const { data } = await supabase.from('profiles').select('alias, premium_until').eq('id', userId).maybeSingle()
-    if (data) setProfile({ alias: data.alias, premium: !!data.premium_until && new Date(data.premium_until) > new Date() })
+    let res = await supabase.from('profiles').select('alias, premium_until, referral_code, school').eq('id', userId).maybeSingle()
+    if (res.error?.code === '42703') {
+      // Migración 0004 aún no ejecutada: sin código de invitación ni colegio.
+      res = await supabase.from('profiles').select('alias, premium_until').eq('id', userId).maybeSingle()
+    }
+    const data = res.data as { alias: string; premium_until: string | null; referral_code?: string; school?: string | null } | null
+    if (data)
+      setProfile({
+        alias: data.alias,
+        premium: !!data.premium_until && new Date(data.premium_until) > new Date(),
+        referralCode: data.referral_code ?? undefined,
+        school: data.school,
+      })
   }, [userId])
 
   useEffect(() => {
@@ -133,6 +152,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (error) throw error
         setRecovering(false)
       },
+      async updateSchool(school) {
+        const value = school.trim().replace(/\s+/g, ' ')
+        const { error } = await supabase!.from('profiles').update({ school: value || null }).eq('id', userId!)
+        if (error) throw error
+        await loadProfile()
+      },
+      reloadProfile: loadProfile,
       cancelRecovery() {
         setRecovering(false)
       },

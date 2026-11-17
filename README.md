@@ -16,6 +16,20 @@ App para prepararse para el examen de admisión **jugando**. Empezamos con la **
 - Sin cuentas configuradas, el progreso se guarda **solo en el navegador** y el ranking es simulado.
 - El pago del Premium (S/ 5 al mes) y los anuncios aún no están implementados.
 
+## ✨ Más funciones
+- **Instalar como app (PWA):** botón "Instalar" en Android y guía para iPhone. Tiene ícono propio y abre a pantalla completa (`public/manifest.webmanifest`, `public/sw.js`).
+- **Pregunta del día:** la misma para todos; da +10 monedas si aciertas y +2 por intentarlo.
+- **Repasa tus errores:** las preguntas falladas vuelven en 1, 3 y 7 días hasta dominarlas (repaso espaciado).
+- **Mi progreso:** preguntas por día (2 semanas), aciertos por curso y 12 logros.
+- **Logros:** se avisan con una notificación al desbloquearse.
+- **Invita a un amigo:** enlace `?ref=CODIGO`; +50 monedas para cada uno (máximo 30 invitados).
+- **Duelo 1 vs 1:** 5 preguntas, se comparte por WhatsApp (`?duelo=ID`); gana quien acierte más y, si empatan, el más rápido.
+- **Ranking por colegio:** el alumno agrega su colegio en "Mi cuenta"; en los resultados del domingo aparece el promedio por colegio.
+- **Foto de pregunta (Premium):** en el Tutor libre se puede enviar la foto de una pregunta; se reduce a 1280 px antes de subirla.
+- **¿Ingresarías?:** compara tu resultado con los puntajes mínimos por carrera. Se activa al llenar `src/data/unica-careers.ts` **con datos reales** (está vacío a propósito).
+
+Sin la migración `0004`, la app sigue funcionando: invitaciones, duelos y colegio quedan ocultos, y los logros y el repaso se guardan solo en el celular.
+
 ## 👤 Cuentas de usuario (Supabase)
 - **Bienvenida**: antes de elegir el examen, el alumno crea su cuenta, inicia sesión o sigue sin cuenta.
 - **Registro** con **Google, Facebook o X** en un toque, o con correo y contraseña. Se pide un apodo para el ranking (no el nombre real) y la confirmación de permiso para menores de 14 años. Quien entra con una red social elige su apodo al llegar. También permite recuperar la contraseña por correo.
@@ -28,7 +42,7 @@ App para prepararse para el examen de admisión **jugando**. Empezamos con la **
 
 **Cómo activarlas:**
 1. Crea un proyecto gratis en [supabase.com](https://supabase.com).
-2. En **SQL Editor**, pega y ejecuta `supabase/migrations/0001_cuentas.sql` luego `0002_eliminar_cuenta.sql` y `0003_dar_premium.sql`.
+2. En **SQL Editor**, pega y ejecuta `supabase/migrations/0001_cuentas.sql` luego `0002_eliminar_cuenta.sql`, `0003_dar_premium.sql` y `0004_funciones_extra.sql`.
 3. En **Authentication → URL Configuration**, pon la dirección de tu app (por ejemplo `https://ingresaya.vercel.app`) como *Site URL*.
 4. Copia `.env.example` como `.env.local` (para probar en tu computadora) y, en Vercel, agrega las mismas variables: `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` (están en Project Settings → API).
 5. Redes sociales (opcional): actívalas en Supabase (**Authentication → Sign In / Providers**) y pon en `VITE_AUTH_PROVIDERS` las que activaste, por ejemplo `google,facebook,x`. Cada red pide crear una "app" en su página de desarrolladores y copiar su *Client ID* y *Secret* en Supabase. Como dirección de retorno (*callback URL*) se usa la que muestra Supabase (`https://<tu-proyecto>.supabase.co/auth/v1/callback`):

@@ -12,11 +12,15 @@ type Props = {
   questions: ShownQuestion[]
   onFinish: (answers: PracticeAnswer[]) => void
   onQuit: () => void
+  /** En los duelos no hay pistas. */
+  allowHints?: boolean
+  /** Etiqueta del modo: "Pregunta del día", "Repaso", "Duelo"… */
+  label?: string
 }
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E']
 
-export function Practice({ questions, onFinish, onQuit }: Props) {
+export function Practice({ questions, onFinish, onQuit, allowHints = true, label }: Props) {
   const [index, setIndex] = useState(0)
   const [answers, setAnswers] = useState<PracticeAnswer[]>([])
   const [chosen, setChosen] = useState<number | null>(null)
@@ -76,6 +80,7 @@ export function Practice({ questions, onFinish, onQuit }: Props) {
               </motion.span>
             )}
           </AnimatePresence>
+          {label && <span className="mode-badge">{label}</span>}
           <span className="muted small tabular">
             {index + 1} / {questions.length}
           </span>
@@ -149,7 +154,7 @@ export function Practice({ questions, onFinish, onQuit }: Props) {
           </div>
 
           <AnimatePresence initial={false}>
-            {!answered && !showHint && (
+            {allowHints && !answered && !showHint && (
               <motion.button
                 key="hint-btn"
                 className="btn btn-ghost full"

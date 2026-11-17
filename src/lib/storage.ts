@@ -13,6 +13,7 @@ const newProgress = (): Progress => ({
   answered: 0,
   topicStats: {},
   weeklyResults: [],
+  extra: {},
 })
 
 const key = (examId: string, userId: string | null) =>
@@ -42,7 +43,11 @@ type ProgressRow = {
   last_practice_day: string | null
   answered: number
   topic_stats: Progress['topicStats']
+  extra?: Progress['extra']
 }
+
+// Si todavía no se ejecutó la migración 0004 (columna `extra`), la app sigue funcionando sin ella.
+let hasExtraColumn = true
 
 const toRow = (p: Progress): ProgressRow => ({
   coins: p.coins,
@@ -50,7 +55,20 @@ const toRow = (p: Progress): ProgressRow => ({
   last_practice_day: p.lastPracticeDay,
   answered: p.answered,
   topic_stats: p.topicStats,
+  ...(hasExtraColumn ? { extra: p.extra } : {}),
 })
+
+const BASE_COLUMNS = 'coins, streak, last_practice_day, answered, topic_stats'
+
+async function fetchProgressRow(examId: string) {
+  if (!supabase) return { data: null, error: null }
+  if (hasExtraColumn) {
+    const res = await supabase.from('progress').select(`${BASE_COLUMNS}, extra`).eq('exam_id', examId).maybeSingle()
+    if (res.error?.code !== '42703') return res
+    hasExtraColumn = false // columna inexistente
+  }
+  return supabase.from('progress').select(BASE_COLUMNS).eq('exam_id', examId).maybeSingle()
+}
 
 type ResultRow = { week_id: string; score: number; max_score: number; correct: number; total_questions: number; created_at: string }
 
@@ -92,7 +110,7 @@ export function useProgress(examId: string, userId: string | null) {
     let cancelled = false
     ;(async () => {
       const [{ data: row, error }, { data: results }] = await Promise.all([
-        supabase.from('progress').select('coins, streak, last_practice_day, answered, topic_stats').eq('exam_id', examId).maybeSingle(),
+        fetchProgressRow(examId),
         supabase.from('weekly_results').select('week_id, score, max_score, correct, total_questions, created_at').eq('exam_id', examId),
       ])
       if (cancelled) return
@@ -118,6 +136,8 @@ export function useProgress(examId: string, userId: string | null) {
           answered: r.answered,
           topicStats: r.topic_stats ?? {},
           weeklyResults: mergeResults((results ?? []) as ResultRow[], local.weeklyResults),
+          // Sin la columna en el servidor, se conserva lo guardado en el celular.
+          extra: r.extra ?? local.extra ?? {},
         }
         setProgress(next)
         save(examId, userId, next)

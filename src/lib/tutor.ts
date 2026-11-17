@@ -9,7 +9,7 @@ import { dayKey } from './game'
 
 type SampleFn = (
   input: TutorTurn[],
-  options: { onText?: (u: { text: string }) => void; signal?: AbortSignal; modelTier?: string; cache?: boolean },
+  options: { onText?: (u: { text: string }) => void; signal?: AbortSignal; modelTier?: string; cache?: boolean; images?: Blob[] },
 ) => Promise<{ text: string; truncated: boolean }>
 
 type ClaudeHost = { use: (name: string) => Promise<unknown> }
@@ -26,7 +26,7 @@ function getSample(): Promise<SampleFn | null> {
   return samplePromise
 }
 
-export type TutorErrorKind = 'unavailable' | 'denied' | 'busy' | 'refused' | 'failed' | 'cancelled' | 'login' | 'limit' | 'premium'
+export type TutorErrorKind = 'unavailable' | 'denied' | 'busy' | 'refused' | 'failed' | 'cancelled' | 'login' | 'limit' | 'premium' | 'image'
 
 export class TutorError extends Error {
   kind: TutorErrorKind
@@ -69,6 +69,8 @@ export async function askTutor(
     onRemaining?: (left: number) => void
     /** Tutor libre (Premium): sin una pregunta de por medio. */
     free?: boolean
+    /** Foto de una pregunta (Tutor libre): se envía junto al turno `turn` de la conversación. */
+    image?: { mediaType: string; data: string; blob: Blob; turn: number }
   },
 ): Promise<string> {
   const convo = trimTurns(turns)
@@ -83,6 +85,8 @@ export async function askTutor(
     try {
       const { text } = await sample(input, {
         onText: ({ text }) => opts.onText(text),
+        // En este modo la foto solo acompaña al mensaje en que se adjuntó.
+        ...(opts.image && opts.image.turn === turns.length - 1 ? { images: [opts.image.blob] } : {}),
         signal: opts.signal,
         modelTier: 'quick',
         cache: false,
@@ -109,13 +113,20 @@ export async function askTutor(
     res = await fetch('/api/tutor', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...(opts.token ? { Authorization: `Bearer ${opts.token}` } : {}) },
-      body: JSON.stringify({ context, turns: convo, mode: opts.free ? 'free' : 'question' }),
+      body: JSON.stringify({
+        context,
+        turns: convo,
+        mode: opts.free ? 'free' : 'question',
+        // La conversación se recorta: se ubica la foto en la posición recortada.
+        ...(opts.image ? { image: { mediaType: opts.image.mediaType, data: opts.image.data }, imageTurn: convo.length - (turns.length - opts.image.turn) } : {}),
+      }),
       signal: opts.signal,
     })
   } catch (e) {
     if ((e as Error).name === 'AbortError') throw new TutorError('cancelled')
     throw new TutorError('unavailable')
   }
+  if (res.status === 413) throw new TutorError('image')
   if (res.status === 404 || res.status === 503) throw new TutorError('unavailable')
   if (res.status === 401) throw new TutorError('login')
   if (res.status === 403) throw new TutorError('premium')

@@ -9,6 +9,8 @@ import { itemVariants, listVariants, tap } from '../lib/ui-helpers'
 import { useAuth } from '../lib/auth'
 import { supabase, type Ranking } from '../lib/supabase'
 import type { SyncState } from '../lib/storage'
+import { DailyCard, InstallCard, MyDuels, QuickActions, ReviewCard } from './HomeExtras'
+import type { Duel } from '../lib/duel'
 
 type Props = {
   exam: ExamConfig
@@ -22,6 +24,12 @@ type Props = {
   sync: SyncState
   needsAccountForWeekly: boolean
   onAccount: () => void
+  onReview: () => void
+  onDaily: () => void
+  onStats: () => void
+  onInvite: () => void
+  onDuel: () => void
+  onOpenDuel: (duel: Duel) => void
 }
 
 const SYNC_LABEL: Record<SyncState, string> = {
@@ -45,7 +53,7 @@ function useCountdown(target: Date) {
   return { d, h, m }
 }
 
-export function Home({ exam, progress, demoMode, onToggleDemo, onPractice, onPracticeTopic, onWeekly, onChangeExam, sync, needsAccountForWeekly, onAccount }: Props) {
+export function Home({ exam, progress, demoMode, onToggleDemo, onPractice, onPracticeTopic, onWeekly, onChangeExam, sync, needsAccountForWeekly, onAccount, onReview, onDaily, onStats, onInvite, onDuel, onOpenDuel }: Props) {
   const auth = useAuth()
   const open = demoMode || isWeeklyOpen()
   const alreadyDone = !demoMode && progress.weeklyResults.some((r) => r.weekId === weekId())
@@ -179,6 +187,11 @@ export function Home({ exam, progress, demoMode, onToggleDemo, onPractice, onPra
           <span className="cta-arrow" aria-hidden="true"><ArrowRight size={24} strokeWidth={2.6} /></span>
         </motion.button>
 
+        <DailyCard exam={exam} progress={progress} onStart={onDaily} />
+        <ReviewCard exam={exam} progress={progress} onStart={onReview} />
+        <QuickActions onStats={onStats} onDuel={onDuel} onInvite={onInvite} />
+        <InstallCard />
+
         <motion.button variants={itemVariants} whileTap={tap} whileHover={{ y: -2 }} className="card free-tutor-card" onClick={() => setFreeTutor(true)}>
           <span className="free-tutor-icon" aria-hidden="true">
             <MessageCircleQuestion size={26} />
@@ -212,6 +225,8 @@ export function Home({ exam, progress, demoMode, onToggleDemo, onPractice, onPra
           </motion.section>
         )}
 
+        <MyDuels onOpen={onOpenDuel} />
+
         {last && (
           <motion.section variants={itemVariants} className="card last-exam">
             <h3 className="h-icon"><ChartColumn size={20} /> Tu último examen</h3>
@@ -241,6 +256,8 @@ export function Home({ exam, progress, demoMode, onToggleDemo, onPractice, onPra
             <li><span>Práctica con 70% o más</span><b>+5</b></li>
             <li><span>Racha diaria</span><b>+5</b></li>
             <li><span>Top 10 del domingo</span><b>+50</b></li>
+            <li><span>Pregunta del día</span><b>+10</b></li>
+            <li><span>Invitar a un amigo</span><b>+50</b></li>
           </ul>
           <button className="btn btn-ghost full" disabled>
             <CirclePlay size={18} /> Ver anuncio (+20) · disponible en la app de Android
