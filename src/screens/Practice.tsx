@@ -1,7 +1,8 @@
-import { Check, Flame, Lightbulb, Sparkles, X } from 'lucide-react'
+import { Check, Flame, GraduationCap, Lightbulb, Sparkles, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
 import type { ShownQuestion } from '../types'
+import { TutorPanel } from '../components/TutorPanel'
 import { CourseIcon, Screen } from '../ui'
 import { courseStyle, tap } from '../lib/ui-helpers'
 
@@ -21,6 +22,7 @@ export function Practice({ questions, onFinish, onQuit }: Props) {
   const [chosen, setChosen] = useState<number | null>(null)
   const [showHint, setShowHint] = useState(false)
   const [combo, setCombo] = useState(0)
+  const [tutorOpen, setTutorOpen] = useState(false)
 
   const { question, order } = questions[index]
 
@@ -52,6 +54,7 @@ export function Practice({ questions, onFinish, onQuit }: Props) {
     setIndex(index + 1)
     setChosen(null)
     setShowHint(false)
+    setTutorOpen(false)
   }
 
   return (
@@ -185,11 +188,21 @@ export function Practice({ questions, onFinish, onQuit }: Props) {
             <div className="sheet-inner">
               <strong className="sheet-title">{isCorrect ? <><Sparkles size={22} /> ¡Correcto!</> : 'Casi… revisa la explicación'}</strong>
               <p>{question.explanation}</p>
+              <motion.button whileTap={tap} className="btn btn-tutor full" onClick={() => setTutorOpen(true)}>
+                <GraduationCap size={20} />
+                {isCorrect ? 'Profundiza con el tutor IA' : '¿No entendiste? Pregúntale al tutor IA'}
+              </motion.button>
               <motion.button whileTap={tap} className={`btn big full ${isCorrect ? 'btn-ok' : 'btn-bad'}`} onClick={next}>
                 {last ? 'Ver resultados' : 'Siguiente →'}
               </motion.button>
             </div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {tutorOpen && answered && (
+          <TutorPanel key={`tutor-${index}`} question={question} chosen={chosen} onClose={() => setTutorOpen(false)} />
         )}
       </AnimatePresence>
     </Screen>

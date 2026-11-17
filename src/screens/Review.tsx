@@ -1,12 +1,14 @@
-import { BookOpen, Check, ChevronDown, X } from 'lucide-react'
+import { BookOpen, Check, ChevronDown, GraduationCap, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useState } from 'react'
-import type { ShownQuestion } from '../types'
+import type { Question, ShownQuestion } from '../types'
+import { TutorPanel } from '../components/TutorPanel'
 
 /** Lista de preguntas con la respuesta del alumno, la correcta y la explicación. */
 export function Review({ questions, chosen }: { questions: ShownQuestion[]; chosen: (number | null)[] }) {
   const [onlyWrong, setOnlyWrong] = useState(true)
   const [openId, setOpenId] = useState<string | null>(null)
+  const [tutor, setTutor] = useState<{ question: Question; chosen: number | null } | null>(null)
   const items = questions
     .map((sq, i) => ({ ...sq, chosen: chosen[i], n: i + 1 }))
     .filter((it) => !onlyWrong || it.chosen !== it.question.answer)
@@ -49,6 +51,9 @@ export function Review({ questions, chosen }: { questions: ShownQuestion[]; chos
                         Correcta: <strong>{question.options[question.answer]}</strong>
                       </p>
                       <p>{question.explanation}</p>
+                      <button className="btn btn-tutor" onClick={() => setTutor({ question, chosen: c })}>
+                        <GraduationCap size={18} /> Explícamelo con el tutor IA
+                      </button>
                     </div>
                   </motion.div>
                 )}
@@ -57,6 +62,10 @@ export function Review({ questions, chosen }: { questions: ShownQuestion[]; chos
           )
         })}
       </div>
+
+      <AnimatePresence>
+        {tutor && <TutorPanel key={tutor.question.id} question={tutor.question} chosen={tutor.chosen} onClose={() => setTutor(null)} />}
+      </AnimatePresence>
     </section>
   )
 }
