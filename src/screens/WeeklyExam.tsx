@@ -20,6 +20,7 @@ export function WeeklyExam({ questions, minutes, onFinish }: Props) {
   const [answers, setAnswers] = useState<(number | null)[]>(() => questions.map(() => null))
   const [index, setIndex] = useState(0)
   const [showGrid, setShowGrid] = useState(false)
+  const [confirming, setConfirming] = useState(false)
   const endAt = useRef(Date.now() + minutes * 60_000)
   const [left, setLeft] = useState(minutes * 60)
   const answersRef = useRef(answers)
@@ -47,13 +48,12 @@ export function WeeklyExam({ questions, minutes, onFinish }: Props) {
     setAnswers((prev) => prev.map((a, i) => (i === index ? orig : a)))
   }
 
+  const missing = questions.length - answeredCount
+
   function finish() {
-    const missing = questions.length - answeredCount
-    const msg = missing > 0 ? `Te faltan ${missing} preguntas. ¿Terminar el examen igual?` : '¿Terminar el examen?'
-    if (window.confirm(msg) && !finished.current) {
-      finished.current = true
-      onFinish(answers)
-    }
+    if (finished.current) return
+    finished.current = true
+    onFinish(answers)
   }
 
   return (
@@ -109,14 +109,26 @@ export function WeeklyExam({ questions, minutes, onFinish }: Props) {
             Siguiente →
           </button>
         ) : (
-          <button className="btn btn-primary" onClick={finish}>
+          <button className="btn btn-primary" onClick={() => setConfirming(true)}>
             Terminar
           </button>
         )}
       </div>
-      <button className="btn btn-ghost" onClick={finish}>
-        Entregar examen
-      </button>
+      {confirming ? (
+        <div className="card confirm-box">
+          <strong>
+            {missing > 0 ? `Te faltan ${missing} preguntas. ¿Entregar el examen igual?` : '¿Entregar el examen?'}
+          </strong>
+          <div className="nav-row">
+            <button className="btn btn-ghost" onClick={() => setConfirming(false)}>Seguir respondiendo</button>
+            <button className="btn btn-primary" onClick={finish}>Sí, entregar</button>
+          </div>
+        </div>
+      ) : (
+        <button className="btn btn-ghost" onClick={() => setConfirming(true)}>
+          Entregar examen
+        </button>
+      )}
     </div>
   )
 }
