@@ -25,3 +25,8 @@ dist-ssr
 
 # Python
 __pycache__/
+
+# Variables de entorno locales
+.env
+.env.local
+.env.*.local

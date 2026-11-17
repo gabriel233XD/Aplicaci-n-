@@ -13,8 +13,28 @@ App para prepararse para el examen de admisión **jugando**. Empezamos con la **
 ## Limitaciones actuales (prototipo)
 - Las **54 preguntas son de ejemplo**; se reemplazarán por el banco basado en exámenes anteriores de la UNICA.
 - La estructura del examen (100 preguntas, 3 horas) es provisional hasta revisar el prospecto oficial (`src/data/exams.ts`).
-- El progreso se guarda **solo en el navegador** y el **ranking es simulado**. Para un ranking real se necesitan servidor y cuentas.
-- Premium (S/ 5 al mes) y anuncios aún no están implementados. El límite de 10 consultas diarias al tutor se cuenta en el navegador (se moverá al servidor junto con las cuentas).
+- Sin cuentas configuradas, el progreso se guarda **solo en el navegador** y el ranking es simulado.
+- El pago del Premium (S/ 5 al mes) y los anuncios aún no están implementados.
+
+## 👤 Cuentas de usuario (Supabase)
+- **Bienvenida**: antes de elegir el examen, el alumno crea su cuenta, inicia sesión o sigue sin cuenta.
+- **Registro** con apodo para el ranking (no se pide el nombre real), correo y contraseña, más la casilla de permiso para menores de 14 años. También permite recuperar la contraseña por correo y, si se activa, entrar con Google.
+- **Progreso en la nube**: monedas, racha y estadísticas se guardan por examen. Al crear la cuenta se sube lo que el alumno ya tenía como invitado.
+- **Ranking real** del Examen de Admisión: uno por semana, con el Top 10 por apodo y el puesto en vivo.
+- **Tutor IA**: solo con sesión iniciada. Da 3 consultas al día en el plan gratis y 10 en Premium, contadas en el servidor.
+- **Seguridad**: con reglas de la base de datos (RLS), cada alumno solo ve y edita lo suyo. Nadie puede darse Premium ni monedas negativas, y no se puede dar dos veces el examen de la misma semana.
+
+**Cómo activarlas:**
+1. Crea un proyecto gratis en [supabase.com](https://supabase.com).
+2. En **SQL Editor**, pega y ejecuta `supabase/migrations/0001_cuentas.sql`.
+3. En **Authentication → URL Configuration**, pon la dirección de tu app (por ejemplo `https://ingresaya.vercel.app`) como *Site URL*.
+4. Copia `.env.example` como `.env.local` (para probar en tu computadora) y, en Vercel, agrega las mismas variables: `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` (están en Project Settings → API).
+5. Opcional: activa Google en **Authentication → Providers** y pon `VITE_AUTH_GOOGLE=true`.
+
+Para dar Premium a un alumno (mientras no esté el pago automático), en el SQL Editor:
+```sql
+update profiles set premium_until = now() + interval '30 days' where alias = 'ApodoDelAlumno';
+```
 
 ## 🎓 Tutor IA ("Profe IA")
 Después de responder una pregunta (o desde la revisión de resultados), el alumno abre un chat con un tutor que le explica su error paso a paso. El tutor conoce la pregunta, las opciones, la respuesta correcta y la explicación oficial, y tiene sugerencias rápidas: "Explícamelo más fácil", "Dame un ejemplo parecido" y "¿Qué truco uso en el examen?".
@@ -24,10 +44,9 @@ Después de responder una pregunta (o desde la revisión de resultados), el alum
 - Servidor: `api/tutor.ts`, una función de Vercel que llama a la API de Claude. La clave nunca llega al navegador.
 
 **Para activarlo al publicar en Vercel:**
-1. En el proyecto de Vercel, agrega la variable de entorno `ANTHROPIC_API_KEY` con tu clave de la API de Claude.
-2. Opcional: `TUTOR_MODEL` para cambiar el modelo. Por defecto usa `claude-haiku-5-5`, elegido por costo para el plan de S/ 5.
-
-⚠️ Antes de lanzarlo al público hay que proteger `/api/tutor` con cuentas de usuario y el límite diario en el servidor; si no, cualquiera podría usar tu clave.
+1. Activa las cuentas (sección anterior): el tutor solo responde a alumnos con sesión iniciada.
+2. En el proyecto de Vercel, agrega la variable de entorno `ANTHROPIC_API_KEY` con tu clave de la API de Claude.
+3. Opcional: `TUTOR_MODEL` para cambiar el modelo. Por defecto usa `claude-haiku-5-5`, elegido por costo para el plan de S/ 5.
 
 ## Cómo ejecutarlo
 ```bash
@@ -40,5 +59,7 @@ npm run build    # versión para publicar (carpeta dist/)
 - `src/data/exams.ts`: lista de exámenes (UNICA, Beca 18, otras) y su configuración.
 - `src/data/unica.ts`: banco de preguntas de la UNICA.
 - `src/lib/game.ts`: reglas del juego (monedas, horarios, ranking).
-- `src/lib/storage.ts`: guardado del progreso.
+- `src/lib/storage.ts`: guardado del progreso (navegador y nube).
+- `src/lib/auth.tsx` y `src/components/AuthSheet.tsx`: cuentas e inicio de sesión.
+- `supabase/migrations/`: base de datos, reglas de seguridad y ranking.
 - `src/screens/`: pantallas de la app.

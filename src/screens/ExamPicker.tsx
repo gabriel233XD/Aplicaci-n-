@@ -1,12 +1,23 @@
-import { GraduationCap } from 'lucide-react'
+import { GraduationCap, LogIn, UserRound } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { exams } from '../data/exams'
 import { Screen } from '../ui'
 import { itemVariants, listVariants, tap } from '../lib/ui-helpers'
+import { useAuth } from '../lib/auth'
 
-export function ExamPicker({ onPick }: { onPick: (id: string) => void }) {
+export function ExamPicker({ onPick, onAccount }: { onPick: (id: string) => void; onAccount: () => void }) {
+  const auth = useAuth()
   return (
     <Screen>
+      {auth.enabled && (
+        <div className="topbar picker-bar">
+          <span className="muted small">{auth.userId ? 'Sesión iniciada' : 'Sin cuenta'}</span>
+          <motion.button whileTap={tap} className={`pill account-btn wide ${auth.userId ? 'in' : ''}`} onClick={onAccount}>
+            {auth.userId ? <UserRound size={18} /> : <LogIn size={18} />}
+            {auth.userId ? (auth.profile?.alias ?? 'Mi cuenta') : 'Iniciar sesión'}
+          </motion.button>
+        </div>
+      )}
       <header className="hero">
         <Dunes />
         <motion.div

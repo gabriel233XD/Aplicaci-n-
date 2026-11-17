@@ -1,7 +1,10 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { GraduationCap, SendHorizontal, Sparkles, Square, X } from 'lucide-react'
+import { GraduationCap, LogIn, SendHorizontal, Sparkles, Square, X } from 'lucide-react'
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
-import { TutorError, askTutor, countTutorQuestion, tutorUsedToday, type TutorErrorKind } from '../lib/tutor'
+import { TutorError, askTutor, countTutorQuestion, tutorMode, tutorUsedToday, type TutorErrorKind } from '../lib/tutor'
+import { useAuth } from '../lib/auth'
+import { accountsEnabled, supabase } from '../lib/supabase'
+import { AuthSheet } from './AuthSheet'
 import { QUICK_REPLIES, TUTOR_LIMITS, openingRequest, questionContext, type TutorQuestion, type TutorTurn } from '../lib/tutorPrompt'
 import { tap } from '../lib/ui-helpers'
 
@@ -18,6 +21,8 @@ const ERROR_COPY: Record<TutorErrorKind, string> = {
   refused: 'El tutor no pudo responder eso. Prueba preguntando de otra forma.',
   failed: 'Se cortó la conexión con el tutor. Toca "Reintentar".',
   cancelled: '',
+  login: 'Tu sesión se cerró. Vuelve a iniciar sesión para seguir usando el tutor.',
+  limit: 'Ya usaste todas tus consultas de hoy. Mañana tienes más.',
 }
 
 /** Muestra texto simple con **negritas** y listas con guiones. */
@@ -61,15 +66,37 @@ export function TutorPanel({ question, chosen, onClose }: Props) {
   const [error, setError] = useState<TutorErrorKind | null>(null)
   const [draft, setDraft] = useState('')
   const [used, setUsed] = useState(tutorUsedToday)
+  const auth = useAuth()
+  const [mode, setMode] = useState<'sample' | 'server' | null>(null)
+  const [quota, setQuota] = useState<{ limit: number; used: number } | null>(null)
+  const [showLogin, setShowLogin] = useState(false)
   const ctl = useRef<AbortController | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
-  const left = Math.max(0, TUTOR_LIMITS.dailyQuestions - used)
+  const opened = useRef(false)
+  // Con cuentas activadas, el servidor lleva la cuenta de consultas; si no, se cuentan en el celular.
+  const serverQuota = mode === 'server' && accountsEnabled
+  const needsLogin = serverQuota && !auth.session
+  const dailyLimit = serverQuota ? (quota?.limit ?? 0) : TUTOR_LIMITS.dailyQuestions
+  const left = serverQuota ? (quota ? Math.max(0, quota.limit - quota.used) : 1) : Math.max(0, TUTOR_LIMITS.dailyQuestions - used)
   const busy = streaming !== null
+
+  useEffect(() => {
+    void tutorMode().then(setMode)
+  }, [])
+
+  // Consulta cuántas preguntas le quedan hoy al alumno (cuentas activadas).
+  useEffect(() => {
+    if (!serverQuota || !auth.session || !supabase) return
+    void supabase.rpc('tutor_quota_status').then(({ data }) => {
+      if (data) setQuota(data as { limit: number; used: number })
+    })
+  }, [serverQuota, auth.session])
 
   async function send(message: string, history: TutorTurn[]) {
     const text = message.trim().slice(0, TUTOR_LIMITS.maxCharsPerTurn)
     if (!text || busy) return
-    if (tutorUsedToday() >= TUTOR_LIMITS.dailyQuestions) {
+    if (needsLogin) return setShowLogin(true)
+    if (!serverQuota && tutorUsedToday() >= TUTOR_LIMITS.dailyQuestions) {
       setUsed(tutorUsedToday())
       return
     }
@@ -78,15 +105,23 @@ export function TutorPanel({ question, chosen, onClose }: Props) {
     setDraft('')
     setError(null)
     setStreaming('')
-    countTutorQuestion()
-    setUsed(tutorUsedToday())
+    if (!serverQuota) {
+      countTutorQuestion()
+      setUsed(tutorUsedToday())
+    }
     ctl.current = new AbortController()
     try {
-      const answer = await askTutor(context, next, { onText: setStreaming, signal: ctl.current.signal })
+      const answer = await askTutor(context, next, {
+        onText: setStreaming,
+        signal: ctl.current.signal,
+        token: auth.session?.access_token,
+        onRemaining: (n) => setQuota((q) => (q ? { ...q, used: q.limit - n } : q)),
+      })
       setTurns([...next, { role: 'assistant', content: answer }])
     } catch (e) {
       const err = e instanceof TutorError ? e : new TutorError('failed')
       if (err.partial && err.kind !== 'refused') setTurns([...next, { role: 'assistant', content: err.partial + ' …' }])
+      if (err.kind === 'limit') setQuota((q) => (q ? { ...q, used: q.limit } : q))
       if (err.kind !== 'cancelled') setError(err.kind)
     } finally {
       setStreaming(null)
@@ -95,11 +130,18 @@ export function TutorPanel({ question, chosen, onClose }: Props) {
 
   // Al abrir, el tutor explica la pregunta automáticamente (el alumno ya tocó el botón).
   // (El temporizador evita un envío doble en el modo estricto de React.)
+  // Espera a saber si se usa la IA del visor o el servidor, y a que haya sesión si hace falta.
+  const ready = mode !== null && !needsLogin && (!serverQuota || quota !== null)
   useEffect(() => {
-    const t = setTimeout(() => void send(openingRequest(question, chosen), []), 0)
+    if (!ready || opened.current) return
+    const t = setTimeout(() => {
+      opened.current = true
+      if (serverQuota && quota && quota.used >= quota.limit) return setError('limit')
+      void send(openingRequest(question, chosen), [])
+    }, 0)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [ready])
 
   // Al cerrar el tutor se detiene la respuesta en curso.
   useEffect(() => () => ctl.current?.abort(), [])
@@ -173,6 +215,17 @@ export function TutorPanel({ question, chosen, onClose }: Props) {
             </div>
           )}
 
+          {needsLogin && (
+            <div className="tutor-login">
+              <p>
+                <strong>Crea tu cuenta gratis</strong> para usar el tutor. Con la cuenta tienes 3 consultas al día y tu progreso se guarda aunque cambies de celular.
+              </p>
+              <motion.button whileTap={tap} className="btn btn-primary full" onClick={() => setShowLogin(true)}>
+                <LogIn size={18} /> Crear cuenta o iniciar sesión
+              </motion.button>
+            </div>
+          )}
+
           {error && (
             <div className="tutor-error" role="status">
               <p>{ERROR_COPY[error]}</p>
@@ -187,7 +240,7 @@ export function TutorPanel({ question, chosen, onClose }: Props) {
 
         <footer className="tutor-foot">
           <AnimatePresence initial={false}>
-            {!busy && turns.length > 0 && left > 0 && error !== 'denied' && error !== 'unavailable' && (
+            {!busy && turns.length > 0 && left > 0 && !needsLogin && error !== 'denied' && error !== 'unavailable' && error !== 'limit' && (
               <motion.div className="quick" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
                 {QUICK_REPLIES.map((q) => (
                   <motion.button key={q} whileTap={tap} className="quick-chip" onClick={() => send(q, turns)}>
@@ -198,9 +251,10 @@ export function TutorPanel({ question, chosen, onClose }: Props) {
             )}
           </AnimatePresence>
 
-          {left === 0 && !busy ? (
+          {(left === 0 || error === 'limit') && !busy ? (
             <p className="tutor-limit">
-              Usaste tus {TUTOR_LIMITS.dailyQuestions} consultas de hoy. Mañana tienes {TUTOR_LIMITS.dailyQuestions} más.
+              Usaste tus {dailyLimit} consultas de hoy. Mañana tienes {dailyLimit} más.
+              {serverQuota && dailyLimit < 10 && ' Con Premium tendrás 10 al día.'}
             </p>
           ) : (
             <form
@@ -219,7 +273,7 @@ export function TutorPanel({ question, chosen, onClose }: Props) {
                 onChange={(e) => setDraft(e.target.value)}
                 placeholder="Escribe tu duda…"
                 maxLength={TUTOR_LIMITS.maxCharsPerTurn}
-                disabled={busy || error === 'denied' || error === 'unavailable'}
+                disabled={busy || needsLogin || error === 'denied' || error === 'unavailable'}
                 autoComplete="off"
               />
               {busy ? (
@@ -234,10 +288,14 @@ export function TutorPanel({ question, chosen, onClose }: Props) {
             </form>
           )}
           <p className="tutor-fine">
-            Te quedan {left} de {TUTOR_LIMITS.dailyQuestions} consultas hoy · El tutor puede equivocarse: compáralo con la explicación oficial.
+            {(!serverQuota || quota) && !needsLogin && `Te quedan ${left} de ${dailyLimit} consultas hoy · `}El tutor puede equivocarse: compáralo con la explicación oficial.
           </p>
         </footer>
       </motion.div>
+
+      <AnimatePresence>
+        {showLogin && <AuthSheet reason="Crea tu cuenta para usar el tutor IA y guardar tu progreso." onClose={() => setShowLogin(false)} />}
+      </AnimatePresence>
     </motion.div>
   )
 }

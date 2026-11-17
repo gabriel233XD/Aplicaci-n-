@@ -1,10 +1,13 @@
-import { ArrowLeft, ArrowRight, ChartColumn, CircleCheck, CirclePlay, Coins, Crown, FileText, PencilLine, Target, Timer, Trophy } from 'lucide-react'
+import { ArrowLeft, ArrowRight, ChartColumn, CircleCheck, CirclePlay, Cloud, CloudOff, Coins, Crown, FileText, LogIn, PencilLine, Target, Timer, Trophy, UserRound } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
 import type { ExamConfig, Progress } from '../types'
 import { isWeeklyOpen, nextWeeklyOpening, weakTopics, weekId } from '../lib/game'
 import { CoinPill, CourseIcon, Screen, StreakPill } from '../ui'
 import { itemVariants, listVariants, tap } from '../lib/ui-helpers'
+import { useAuth } from '../lib/auth'
+import { supabase, type Ranking } from '../lib/supabase'
+import type { SyncState } from '../lib/storage'
 
 type Props = {
   exam: ExamConfig
@@ -15,6 +18,17 @@ type Props = {
   onPracticeTopic: (topic: string) => void
   onWeekly: () => void
   onChangeExam: () => void
+  sync: SyncState
+  needsAccountForWeekly: boolean
+  onAccount: () => void
+}
+
+const SYNC_LABEL: Record<SyncState, string> = {
+  local: 'Progreso guardado solo en este celular',
+  loading: 'Cargando tu progreso…',
+  synced: 'Progreso guardado en tu cuenta',
+  saving: 'Guardando…',
+  offline: 'Sin conexión: se guardará al volver internet',
 }
 
 function useCountdown(target: Date) {
@@ -30,7 +44,8 @@ function useCountdown(target: Date) {
   return { d, h, m }
 }
 
-export function Home({ exam, progress, demoMode, onToggleDemo, onPractice, onPracticeTopic, onWeekly, onChangeExam }: Props) {
+export function Home({ exam, progress, demoMode, onToggleDemo, onPractice, onPracticeTopic, onWeekly, onChangeExam, sync, needsAccountForWeekly, onAccount }: Props) {
+  const auth = useAuth()
   const open = demoMode || isWeeklyOpen()
   const alreadyDone = !demoMode && progress.weeklyResults.some((r) => r.weekId === weekId())
   const canPay = progress.coins >= exam.weekly.entryCost
@@ -44,6 +59,19 @@ export function Home({ exam, progress, demoMode, onToggleDemo, onPractice, onPra
   const coinPct = Math.min(100, (progress.coins / exam.weekly.entryCost) * 100)
   const courseOf = (topic: string) => exam.questions.find((q) => q.topic === topic)?.course ?? null
 
+  // Puesto en vivo del último examen: el ranking cambia mientras otros alumnos dan el examen.
+  const [live, setLive] = useState<{ position: number; participants: number } | null>(null)
+  const lastWeek = last && !last.weekId.startsWith('demo-') ? last.weekId : null
+  useEffect(() => {
+    if (!supabase || !auth.userId || !lastWeek) return
+    void supabase.rpc('weekly_ranking', { p_exam_id: exam.id, p_week_id: lastWeek }).then(({ data }) => {
+      const r = data as Ranking | null
+      if (r?.me) setLive({ position: r.me.position, participants: r.participants })
+    })
+  }, [auth.userId, exam.id, lastWeek])
+  const lastPosition = live?.position ?? last?.position ?? 0
+  const lastParticipants = live?.participants ?? last?.participants ?? 0
+
   return (
     <Screen className="home">
       <header className="topbar">
@@ -53,17 +81,38 @@ export function Home({ exam, progress, demoMode, onToggleDemo, onPractice, onPra
         <div className="pills">
           <CoinPill coins={progress.coins} />
           <StreakPill streak={progress.streak} />
+          {auth.enabled && (
+            <motion.button
+              whileTap={tap}
+              className={`pill account-btn ${auth.userId ? 'in' : ''}`}
+              onClick={onAccount}
+              aria-label={auth.userId ? 'Mi cuenta' : 'Iniciar sesión'}
+            >
+              {auth.userId ? <UserRound size={18} /> : <LogIn size={18} />}
+            </motion.button>
+          )}
         </div>
       </header>
 
       <motion.div className="stack home-grid" variants={listVariants} initial="hidden" animate="show">
         <motion.div variants={itemVariants} className="greeting">
-          <h1>¡Hola, postulante!</h1>
+          <h1>¡Hola, {auth.profile?.alias ?? 'postulante'}!</h1>
           <p className="muted">
             {progress.answered === 0
               ? 'Empieza con una práctica corta para ganar tus primeras monedas.'
               : `Llevas ${progress.answered} preguntas respondidas${accuracy !== null ? ` · ${accuracy}% de aciertos` : ''}.`}
           </p>
+          {auth.enabled && (
+            <p className={`sync-note ${sync}`}>
+              {sync === 'offline' || sync === 'local' ? <CloudOff size={14} /> : <Cloud size={14} />}
+              {SYNC_LABEL[sync]}
+              {sync === 'local' && (
+                <button className="link inline" onClick={onAccount}>
+                  Crear cuenta
+                </button>
+              )}
+            </p>
+          )}
         </motion.div>
 
         <motion.section variants={itemVariants} className="event">
@@ -78,6 +127,13 @@ export function Home({ exam, progress, demoMode, onToggleDemo, onPractice, onPra
 
           {alreadyDone ? (
             <p className="event-note with-icon"><CircleCheck size={18} /> Ya diste el examen de esta semana. ¡Nos vemos el próximo domingo!</p>
+          ) : open && needsAccountForWeekly ? (
+            <>
+              <motion.button className="btn btn-gold" whileTap={tap} onClick={onWeekly}>
+                <LogIn size={18} /> Crea tu cuenta para competir
+              </motion.button>
+              <p className="event-note">El ranking es entre alumnos con cuenta. Es gratis.</p>
+            </>
           ) : open ? (
             <>
               <motion.button className="btn btn-gold" disabled={!canPay} whileTap={canPay ? tap : undefined} onClick={onWeekly}>
@@ -149,8 +205,8 @@ export function Home({ exam, progress, demoMode, onToggleDemo, onPractice, onPra
                 <span>de {last.maxScore} pts</span>
               </div>
               <div>
-                <strong>#{last.position}</strong>
-                <span>de {last.participants}</span>
+                <strong>{lastPosition > 0 ? `#${lastPosition}` : '—'}</strong>
+                <span>{lastPosition > 0 ? `de ${lastParticipants}${live ? ' · en vivo' : ''}` : 'puesto'}</span>
               </div>
               <div>
                 <strong>

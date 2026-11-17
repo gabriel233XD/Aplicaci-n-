@@ -1,4 +1,4 @@
-import { Minus, Target, TrendingDown, TrendingUp } from 'lucide-react'
+import { Minus, Target, TrendingDown, TrendingUp, Trophy } from 'lucide-react'
 import { motion } from 'framer-motion'
 import type { ShownQuestion, WeeklyResult } from '../types'
 import { CoinBurst, CountUp, Ring, Screen } from '../ui'
@@ -123,7 +123,7 @@ export function WeeklyResultView({
 }) {
   const weak = sessionTopics(questions, chosen).slice(0, 5)
   const diff = previous ? result.score - previous.score : null
-  const topPct = Math.max(1, Math.round((result.position / result.participants) * 100))
+  const topPct = result.participants ? Math.max(1, Math.round((result.position / result.participants) * 100)) : 0
 
   return (
     <Screen>
@@ -138,6 +138,9 @@ export function WeeklyResultView({
           <div className="event-note">
             de {result.maxScore} puntos · {result.correct}/{result.totalQuestions} correctas
           </div>
+          {result.rankingError ? (
+            <p className="ranking-error">{result.rankingError}</p>
+          ) : (
           <motion.div
             className="position-badge"
             initial={{ scale: 0, rotate: -12 }}
@@ -148,6 +151,7 @@ export function WeeklyResultView({
             <strong>#{result.position}</strong>
             <span>de {result.participants} · top {topPct}%</span>
           </motion.div>
+          )}
           {diff !== null && (
             <div className={`trend ${diff > 0 ? 'up' : diff < 0 ? 'down' : ''}`}>
               {diff > 0 ? <TrendingUp size={18} /> : diff < 0 ? <TrendingDown size={18} /> : <Minus size={18} />}
@@ -155,8 +159,24 @@ export function WeeklyResultView({
             </div>
           )}
           {bonus > 0 && <div className="coins-earned">¡Top 10! +{bonus} <span className="coin coin-lg" aria-hidden="true" /></div>}
-          <p className="event-fine">Ranking de ejemplo con postulantes simulados (prototipo).</p>
+          {result.simulated && <p className="event-fine">Ranking de ejemplo con postulantes simulados (modo demo o sin cuenta).</p>}
         </motion.section>
+
+        {result.top && result.top.length > 0 && (
+          <motion.section variants={itemVariants} className="card">
+            <h3 className="h-icon"><Trophy size={20} /> Top 10 de Ica</h3>
+            <ol className="leaderboard">
+              {result.top.map((r) => (
+                <li key={`${r.position}-${r.alias}`} className={r.isMe ? 'me' : ''}>
+                  <span className={`lb-pos p${r.position}`}>{r.position}</span>
+                  <span className="lb-alias">{r.alias}{r.isMe && ' (tú)'}</span>
+                  <span className="lb-score tabular">{r.score}</span>
+                </li>
+              ))}
+            </ol>
+            {result.position > 10 && <p className="muted small">Tú estás en el puesto #{result.position}. ¡Sigue practicando para entrar al top!</p>}
+          </motion.section>
+        )}
 
         {weak.length > 0 && (
           <motion.section variants={itemVariants} className="card">

@@ -4,7 +4,12 @@ import { exams } from './data/exams'
 import type { ExamConfig, ShownQuestion, WeeklyResult } from './types'
 import { RULES, dayKey, pickQuestions, simulatedRanking, weekId } from './lib/game'
 import { loadSelectedExam, saveSelectedExam, useProgress } from './lib/storage'
+import { useAuth } from './lib/auth'
+import { accountsEnabled, supabase, type Ranking } from './lib/supabase'
+import { AccountSheet, AuthSheet, NewPasswordSheet } from './components/AuthSheet'
+import { Screen } from './ui'
 import { ExamPicker } from './screens/ExamPicker'
+import { Welcome } from './screens/Welcome'
 import { Home } from './screens/Home'
 import { PracticeSetup } from './screens/PracticeSetup'
 import { Practice, type PracticeAnswer } from './screens/Practice'
@@ -23,18 +28,57 @@ export default function App() {
   }
 
   const exam = exams.find((e) => e.id === examId)
+  const auth = useAuth()
+  const [guest, setGuest] = useState(loadGuestChoice)
+  const [sheet, setSheet] = useState<null | 'signup' | 'signin' | 'account'>(null)
+  // Con cuentas activadas, primero se pide iniciar sesión (o elegir seguir sin cuenta).
+  const showWelcome = auth.enabled && !auth.loading && !auth.userId && !guest
+  const chooseGuest = () => {
+    saveGuestChoice()
+    setGuest(true)
+  }
+
   return (
     <MotionConfig reducedMotion="user">
       <AnimatePresence mode="wait">
-        {exam ? (
-          // `key` separa el progreso de cada examen (UNICA, Beca 18, etc.).
-          <ExamApp key={exam.id} exam={exam} onChangeExam={() => pick(null)} />
+        {auth.loading ? (
+          <Screen key="loading" className="grading">
+            <div className="spinner" aria-hidden="true" />
+          </Screen>
+        ) : showWelcome ? (
+          <Welcome key="welcome" onSignUp={() => setSheet('signup')} onSignIn={() => setSheet('signin')} onGuest={chooseGuest} />
+        ) : exam ? (
+          // `key` separa el progreso de cada examen (UNICA, Beca 18, etc.) y de cada cuenta.
+          <ExamApp key={`${exam.id}:${auth.userId ?? 'invitado'}`} exam={exam} onChangeExam={() => pick(null)} />
         ) : (
-          <ExamPicker key="picker" onPick={pick} />
+          <ExamPicker key="picker" onPick={pick} onAccount={() => setSheet(auth.userId ? 'account' : 'signin')} />
         )}
       </AnimatePresence>
+      <AnimatePresence>
+        {(sheet === 'signup' || sheet === 'signin') && !auth.userId && (
+          <AuthSheet key="auth-root" initialMode={sheet} onClose={() => setSheet(null)} />
+        )}
+        {sheet === 'account' && auth.userId && <AccountSheet key="account-root" onClose={() => setSheet(null)} />}
+      </AnimatePresence>
+      <AnimatePresence>{auth.recovering && <NewPasswordSheet key="new-password" />}</AnimatePresence>
     </MotionConfig>
   )
+}
+
+function loadGuestChoice(): boolean {
+  try {
+    return localStorage.getItem('ingresaya:guest') === '1'
+  } catch {
+    return false
+  }
+}
+
+function saveGuestChoice() {
+  try {
+    localStorage.setItem('ingresaya:guest', '1')
+  } catch {
+    // ignorar
+  }
 }
 
 type View =
@@ -43,13 +87,18 @@ type View =
   | { name: 'practice'; questions: ShownQuestion[]; course: string | null }
   | { name: 'practiceResult'; questions: ShownQuestion[]; chosen: number[]; summary: PracticeSummary; course: string | null }
   | { name: 'weekly'; questions: ShownQuestion[] }
+  | { name: 'grading' }
   | { name: 'weeklyResult'; questions: ShownQuestion[]; chosen: (number | null)[]; result: WeeklyResult; previous?: WeeklyResult; bonus: number }
 
 function ExamApp({ exam, onChangeExam }: { exam: ExamConfig; onChangeExam: () => void }) {
-  const [progress, update] = useProgress(exam.id)
+  const auth = useAuth()
+  const [progress, update, sync] = useProgress(exam.id, auth.userId)
   const [view, setView] = useState<View>({ name: 'home' })
   const [demoMode, setDemoMode] = useState(false)
+  const [sheet, setSheet] = useState<null | { kind: 'auth'; reason?: string } | { kind: 'account' }>(null)
   const home = () => setView({ name: 'home' })
+  /** Con cuentas activadas, el examen real del domingo exige iniciar sesión. */
+  const rankedExam = accountsEnabled && !demoMode
 
   function startPractice(course: string | null, count: number, topic?: string) {
     const pool = exam.questions.filter((q) => (!course || q.course === course) && (!topic || q.topic === topic))
@@ -96,18 +145,46 @@ function ExamApp({ exam, onChangeExam }: { exam: ExamConfig; onChangeExam: () =>
   }
 
   function startWeekly() {
+    if (rankedExam && !auth.userId) {
+      setSheet({ kind: 'auth', reason: 'Crea tu cuenta para dar el examen del domingo y aparecer en el ranking de Ica.' })
+      return
+    }
     if (progress.coins < exam.weekly.entryCost) return
     update((p) => ({ ...p, coins: p.coins - exam.weekly.entryCost }))
     setView({ name: 'weekly', questions: pickQuestions(exam.questions, exam.weekly.questionCount) })
   }
 
   const finishWeekly = useCallback(
-    (questions: ShownQuestion[], chosen: (number | null)[]) => {
+    async (questions: ShownQuestion[], chosen: (number | null)[]) => {
       const correct = chosen.filter((c, i) => c === questions[i].question.answer).length
       const maxScore = questions.length * RULES.pointsPerQuestion
       const score = correct * RULES.pointsPerQuestion
-      const { position, participants } = simulatedRanking(score, maxScore)
-      const bonus = position <= 10 ? RULES.top10Bonus : 0
+      let ranking: Pick<WeeklyResult, 'position' | 'participants' | 'top' | 'simulated' | 'rankingError'>
+
+      if (rankedExam && auth.userId && supabase) {
+        // Ranking real: el servidor guarda el resultado (uno por semana) y devuelve el top 10.
+        setView({ name: 'grading' })
+        const { data, error } = await supabase.rpc('submit_weekly_result', {
+          p_exam_id: exam.id,
+          p_score: score,
+          p_max_score: maxScore,
+          p_correct: correct,
+          p_total: questions.length,
+        })
+        const r = data as Ranking | null
+        ranking =
+          error || !r?.me
+            ? {
+                position: 0,
+                participants: 0,
+                rankingError: error?.code === '23505' ? 'Ya diste el examen de esta semana: este intento no cuenta para el ranking.' : 'No se pudo guardar tu resultado. Revisa tu conexión.',
+              }
+            : { position: r.me.position, participants: r.participants, top: r.top }
+      } else {
+        ranking = { ...simulatedRanking(score, maxScore), simulated: true }
+      }
+
+      const bonus = score > 0 && ranking.position > 0 && ranking.position <= 10 ? RULES.top10Bonus : 0
       const result: WeeklyResult = {
         weekId: demoMode ? `demo-${Date.now()}` : weekId(),
         date: new Date().toISOString(),
@@ -115,8 +192,7 @@ function ExamApp({ exam, onChangeExam }: { exam: ExamConfig; onChangeExam: () =>
         maxScore,
         correct,
         totalQuestions: questions.length,
-        position,
-        participants,
+        ...ranking,
       }
       const previous = progress.weeklyResults[progress.weeklyResults.length - 1]
 
@@ -133,10 +209,18 @@ function ExamApp({ exam, onChangeExam }: { exam: ExamConfig; onChangeExam: () =>
       })
       setView({ name: 'weeklyResult', questions, chosen, result, previous, bonus })
     },
-    [demoMode, progress.weeklyResults, update],
+    [demoMode, rankedExam, auth.userId, exam.id, progress.weeklyResults, update],
   )
 
-  return <AnimatePresence mode="wait">{renderView()}</AnimatePresence>
+  return (
+    <>
+      <AnimatePresence mode="wait">{renderView()}</AnimatePresence>
+      <AnimatePresence>
+        {sheet?.kind === 'auth' && <AuthSheet key="auth" reason={sheet.reason} onClose={() => setSheet(null)} />}
+        {sheet?.kind === 'account' && <AccountSheet key="account" onClose={() => setSheet(null)} />}
+      </AnimatePresence>
+    </>
+  )
 
   function renderView(): ReactNode {
   switch (view.name) {
@@ -152,6 +236,9 @@ function ExamApp({ exam, onChangeExam }: { exam: ExamConfig; onChangeExam: () =>
           onPracticeTopic={(topic) => startPractice(null, 10, topic)}
           onWeekly={startWeekly}
           onChangeExam={onChangeExam}
+          sync={sync}
+          needsAccountForWeekly={rankedExam && !auth.userId}
+          onAccount={() => setSheet(auth.userId ? { kind: 'account' } : { kind: 'auth' })}
         />
       )
     case 'setup':
@@ -182,8 +269,16 @@ function ExamApp({ exam, onChangeExam }: { exam: ExamConfig; onChangeExam: () =>
           key="weekly"
           questions={view.questions}
           minutes={exam.weekly.minutes}
-          onFinish={(chosen) => finishWeekly(view.questions, chosen)}
+          onFinish={(chosen) => void finishWeekly(view.questions, chosen)}
         />
+      )
+    case 'grading':
+      return (
+        <Screen key="grading" className="grading">
+          <div className="spinner" aria-hidden="true" />
+          <h2>Calificando tu examen…</h2>
+          <p className="muted">Calculando tu puesto en el ranking de Ica.</p>
+        </Screen>
       )
     case 'weeklyResult':
       return (

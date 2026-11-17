@@ -33,8 +33,14 @@ export type WeeklyResult = {
   maxScore: number
   correct: number
   totalQuestions: number
+  /** 0 = puesto aún desconocido (se consulta al servidor). */
   position: number
   participants: number
+  /** Top 10 real (con cuentas) o ausente si el ranking fue simulado. */
+  top?: { position: number; alias: string; score: number; isMe: boolean }[]
+  simulated?: boolean
+  /** Mensaje si no se pudo guardar en el ranking. */
+  rankingError?: string
 }
 
 export type Progress = {

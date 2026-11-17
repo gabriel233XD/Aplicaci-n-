@@ -26,7 +26,7 @@ function getSample(): Promise<SampleFn | null> {
   return samplePromise
 }
 
-export type TutorErrorKind = 'unavailable' | 'denied' | 'busy' | 'refused' | 'failed' | 'cancelled'
+export type TutorErrorKind = 'unavailable' | 'denied' | 'busy' | 'refused' | 'failed' | 'cancelled' | 'login' | 'limit'
 
 export class TutorError extends Error {
   kind: TutorErrorKind
@@ -36,6 +36,11 @@ export class TutorError extends Error {
     this.kind = kind
     this.partial = partial
   }
+}
+
+/** "sample": dentro de claude.ai (usa la IA del visor). "server": la app publicada (usa /api/tutor). */
+export async function tutorMode(): Promise<'sample' | 'server'> {
+  return (await getSample()) ? 'sample' : 'server'
 }
 
 /** Recorta la conversación: siempre se conserva el contexto de la pregunta (primer turno). */
@@ -55,7 +60,14 @@ function trimTurns(turns: TutorTurn[]): TutorTurn[] {
 export async function askTutor(
   context: string,
   turns: TutorTurn[],
-  opts: { onText: (text: string) => void; signal: AbortSignal },
+  opts: {
+    onText: (text: string) => void
+    signal: AbortSignal
+    /** Token de la sesión del alumno (cuentas activadas). */
+    token?: string
+    /** Recibe cuántas consultas le quedan hoy, según el servidor. */
+    onRemaining?: (left: number) => void
+  },
 ): Promise<string> {
   const convo = trimTurns(turns)
   const sample = await getSample()
@@ -94,7 +106,7 @@ export async function askTutor(
   try {
     res = await fetch('/api/tutor', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(opts.token ? { Authorization: `Bearer ${opts.token}` } : {}) },
       body: JSON.stringify({ context, turns: convo }),
       signal: opts.signal,
     })
@@ -102,8 +114,14 @@ export async function askTutor(
     if ((e as Error).name === 'AbortError') throw new TutorError('cancelled')
     throw new TutorError('unavailable')
   }
-  if (res.status === 404) throw new TutorError('unavailable')
-  if (res.status === 429) throw new TutorError('busy')
+  if (res.status === 404 || res.status === 503) throw new TutorError('unavailable')
+  if (res.status === 401) throw new TutorError('login')
+  if (res.status === 429) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string }
+    throw new TutorError(body.error === 'limit' ? 'limit' : 'busy')
+  }
+  const remaining = res.headers.get('x-tutor-remaining')
+  if (remaining !== null && opts.onRemaining) opts.onRemaining(Number(remaining))
   if (!res.ok || !res.body) throw new TutorError('failed')
   // Un hosting sin la función /api/tutor puede devolver la página HTML en su lugar.
   if (!(res.headers.get('content-type') ?? '').startsWith('text/plain')) throw new TutorError('unavailable')
