@@ -109,6 +109,7 @@ export function Practice({ questions, onFinish, onQuit, allowHints = true, label
               {question.course} · {question.topic}
             </span>
           </div>
+          {question.source && <span className="q-source">{question.source}</span>}
           <h2 className="statement">{question.statement}</h2>
 
           <div className="stack-sm">

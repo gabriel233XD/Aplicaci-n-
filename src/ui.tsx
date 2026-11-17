@@ -1,7 +1,7 @@
 import { animate, motion, useMotionValue, useTransform, type HTMLMotionProps } from 'framer-motion'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import {
-  BookOpen, Dna, Divide, Flame, FlaskConical, Landmark, MessageSquareText, Puzzle, Triangle, Variable, Zap,
+  BookOpen, Brain, Compass, Dna, Globe, Library, PenLine, Scale, Divide, Flame, FlaskConical, Landmark, MessageSquareText, Puzzle, Triangle, Variable, Zap,
   type LucideIcon,
 } from 'lucide-react'
 import { courseStyle } from './lib/ui-helpers'
@@ -139,6 +139,12 @@ const COURSE_ICONS: Record<string, LucideIcon> = {
   Química: FlaskConical,
   Física: Zap,
   'Historia y Cultura': Landmark,
+  'Historia y Geografía': Globe,
+  Lenguaje: PenLine,
+  Literatura: Library,
+  'Psicología y Filosofía': Brain,
+  'Cívica y Economía': Scale,
+  Trigonometría: Compass,
 }
 
 const ICON_SIZE = { sm: 17, md: 22, lg: 28 }

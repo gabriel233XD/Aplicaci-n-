@@ -27,6 +27,12 @@ const COURSE_META: Record<string, { hue: number }> = {
   Química: { hue: 178 },
   Física: { hue: 220 },
   'Historia y Cultura': { hue: 12 },
+  'Historia y Geografía': { hue: 12 },
+  Lenguaje: { hue: 190 },
+  Literatura: { hue: 290 },
+  'Psicología y Filosofía': { hue: 310 },
+  'Cívica y Economía': { hue: 95 },
+  Trigonometría: { hue: 60 },
 }
 
 export function courseMeta(course: string | null) {

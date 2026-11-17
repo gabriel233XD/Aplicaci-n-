@@ -8,6 +8,8 @@ export type Question = {
   answer: number
   hint: string
   explanation: string
+  /** De dónde sale la pregunta (por ejemplo, un examen real). */
+  source?: string
 }
 
 export type ExamConfig = {
