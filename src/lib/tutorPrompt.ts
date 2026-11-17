@@ -52,6 +52,21 @@ export function openingRequest(q: TutorQuestion, chosen: number | null): string 
   return `Elegí "${q.options[chosen]}" y me equivoqué. ¿Por qué está mal y cómo se resuelve?`
 }
 
+/** Contexto del "Tutor libre" (Premium): el alumno pregunta cualquier tema, sin partir de una pregunta. */
+export function freeContext(examName: string, courses: string[]): string {
+  return `Modo "Tutor libre": el alumno no está viendo una pregunta en particular. Puede preguntarte cualquier tema del examen de admisión ${examName}.
+Cursos del examen: ${courses.join(', ')}.
+Explica el tema desde lo básico, con un ejemplo resuelto del estilo del examen de admisión. Si te pide práctica, dale preguntas de 5 alternativas (A–E) y espera a que responda antes de dar la solución.`
+}
+
+/** Sugerencias para empezar en el Tutor libre. */
+export const FREE_STARTERS = [
+  'No entiendo la regla de tres compuesta',
+  '¿Cómo resuelvo problemas de edades?',
+  'Explícame la célula y sus partes',
+  'Dame 3 preguntas de práctica de porcentajes',
+]
+
 export const QUICK_REPLIES = [
   'Explícamelo más fácil',
   'Dame un ejemplo parecido para practicar',

@@ -1,18 +1,17 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { GraduationCap, LogIn, SendHorizontal, Sparkles, Square, X } from 'lucide-react'
+import { Crown, GraduationCap, LogIn, SendHorizontal, Sparkles, Square, X } from 'lucide-react'
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
 import { TutorError, askTutor, countTutorQuestion, tutorMode, tutorUsedToday, type TutorErrorKind } from '../lib/tutor'
 import { useAuth } from '../lib/auth'
 import { accountsEnabled, supabase } from '../lib/supabase'
 import { AuthSheet } from './AuthSheet'
-import { QUICK_REPLIES, TUTOR_LIMITS, openingRequest, questionContext, type TutorQuestion, type TutorTurn } from '../lib/tutorPrompt'
+import { FREE_STARTERS, QUICK_REPLIES, TUTOR_LIMITS, freeContext, openingRequest, questionContext, type TutorQuestion, type TutorTurn } from '../lib/tutorPrompt'
 import { tap } from '../lib/ui-helpers'
 
-type Props = {
-  question: TutorQuestion
-  chosen: number | null
-  onClose: () => void
-}
+type Props =
+  | { question: TutorQuestion; chosen: number | null; onClose: () => void; free?: undefined }
+  /** Tutor libre (Premium): el alumno pregunta cualquier tema del examen. */
+  | { free: { examName: string; courses: string[] }; onClose: () => void; question?: undefined; chosen?: undefined }
 
 const ERROR_COPY: Record<TutorErrorKind, string> = {
   unavailable: 'El tutor todavía no está activado en esta versión de la app.',
@@ -23,6 +22,7 @@ const ERROR_COPY: Record<TutorErrorKind, string> = {
   cancelled: '',
   login: 'Tu sesión se cerró. Vuelve a iniciar sesión para seguir usando el tutor.',
   limit: 'Ya usaste todas tus consultas de hoy. Mañana tienes más.',
+  premium: 'El Tutor libre es una función Premium.',
 }
 
 /** Muestra texto simple con **negritas** y listas con guiones. */
@@ -59,8 +59,8 @@ function RichText({ text }: { text: string }) {
   return <>{blocks}</>
 }
 
-export function TutorPanel({ question, chosen, onClose }: Props) {
-  const context = questionContext(question, chosen)
+export function TutorPanel({ question, chosen = null, free, onClose }: Props) {
+  const context = question ? questionContext(question, chosen) : freeContext(free!.examName, free!.courses)
   const [turns, setTurns] = useState<TutorTurn[]>([])
   const [streaming, setStreaming] = useState<string | null>(null)
   const [error, setError] = useState<TutorErrorKind | null>(null)
@@ -79,6 +79,9 @@ export function TutorPanel({ question, chosen, onClose }: Props) {
   const dailyLimit = serverQuota ? (quota?.limit ?? 0) : TUTOR_LIMITS.dailyQuestions
   const left = serverQuota ? (quota ? Math.max(0, quota.limit - quota.used) : 1) : Math.max(0, TUTOR_LIMITS.dailyQuestions - used)
   const busy = streaming !== null
+  // Tutor libre: solo Premium cuando hay cuentas (sin cuentas, por ejemplo en la versión de prueba, queda abierto).
+  const isPremium = !!auth.profile?.premium || (quota?.limit ?? 0) >= 10
+  const locked = !!free && serverQuota && !!auth.session && quota !== null && !isPremium
 
   useEffect(() => {
     void tutorMode().then(setMode)
@@ -96,6 +99,7 @@ export function TutorPanel({ question, chosen, onClose }: Props) {
     const text = message.trim().slice(0, TUTOR_LIMITS.maxCharsPerTurn)
     if (!text || busy) return
     if (needsLogin) return setShowLogin(true)
+    if (locked) return
     if (!serverQuota && tutorUsedToday() >= TUTOR_LIMITS.dailyQuestions) {
       setUsed(tutorUsedToday())
       return
@@ -115,6 +119,7 @@ export function TutorPanel({ question, chosen, onClose }: Props) {
         onText: setStreaming,
         signal: ctl.current.signal,
         token: auth.session?.access_token,
+        free: !!free,
         onRemaining: (n) => setQuota((q) => (q ? { ...q, used: q.limit - n } : q)),
       })
       setTurns([...next, { role: 'assistant', content: answer }])
@@ -137,7 +142,8 @@ export function TutorPanel({ question, chosen, onClose }: Props) {
     const t = setTimeout(() => {
       opened.current = true
       if (serverQuota && quota && quota.used >= quota.limit) return setError('limit')
-      void send(openingRequest(question, chosen), [])
+      // En el Tutor libre el alumno escribe primero.
+      if (question) void send(openingRequest(question, chosen), [])
     }, 0)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -174,10 +180,8 @@ export function TutorPanel({ question, chosen, onClose }: Props) {
             <GraduationCap size={22} />
           </span>
           <div className="tutor-title">
-            <strong>Profe IA</strong>
-            <span>
-              {question.course} · {question.topic}
-            </span>
+            <strong>{free ? 'Tutor libre' : 'Profe IA'}</strong>
+            <span>{question ? `${question.course} · ${question.topic}` : `Pregúntame cualquier tema del examen ${free!.examName}`}</span>
           </div>
           <motion.button whileTap={tap} className="icon-btn" onClick={onClose} aria-label="Cerrar tutor">
             <X size={22} />
@@ -185,10 +189,41 @@ export function TutorPanel({ question, chosen, onClose }: Props) {
         </header>
 
         <div className="tutor-list" ref={listRef}>
-          <div className="tutor-q">
-            <span className="tiny muted">Pregunta</span>
-            <p>{question.statement}</p>
-          </div>
+          {question ? (
+            <div className="tutor-q">
+              <span className="tiny muted">Pregunta</span>
+              <p>{question.statement}</p>
+            </div>
+          ) : (
+            <div className="bubble assistant">
+              <p>
+                ¡Hola! Soy tu <strong>Tutor libre</strong>. Pregúntame cualquier tema del examen: te lo explico desde lo básico, con
+                ejemplos, y si quieres te doy preguntas para practicar.
+              </p>
+            </div>
+          )}
+
+          {locked && (
+            <div className="tutor-login premium-lock">
+              <p className="with-icon">
+                <Crown size={20} /> <strong>El Tutor libre es una función Premium.</strong>
+              </p>
+              <p>
+                Con Premium (S/ 5 al mes) puedes preguntar cualquier tema del examen, sin partir de una pregunta, y tienes 10 consultas
+                al día. Mientras tanto, usa el tutor después de responder cada pregunta en la práctica.
+              </p>
+            </div>
+          )}
+
+          {free && !locked && !needsLogin && turns.length === 0 && !busy && (
+            <div className="starters">
+              {FREE_STARTERS.map((q) => (
+                <motion.button key={q} whileTap={tap} className="quick-chip" onClick={() => send(q, [])}>
+                  <Sparkles size={14} /> {q}
+                </motion.button>
+              ))}
+            </div>
+          )}
 
           {turns.map((t, i) => (
             <motion.div
@@ -240,7 +275,7 @@ export function TutorPanel({ question, chosen, onClose }: Props) {
 
         <footer className="tutor-foot">
           <AnimatePresence initial={false}>
-            {!busy && turns.length > 0 && left > 0 && !needsLogin && error !== 'denied' && error !== 'unavailable' && error !== 'limit' && (
+            {!busy && turns.length > 0 && left > 0 && !needsLogin && !locked && error !== 'denied' && error !== 'unavailable' && error !== 'limit' && error !== 'premium' && (
               <motion.div className="quick" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
                 {QUICK_REPLIES.map((q) => (
                   <motion.button key={q} whileTap={tap} className="quick-chip" onClick={() => send(q, turns)}>
@@ -271,9 +306,9 @@ export function TutorPanel({ question, chosen, onClose }: Props) {
                 id="tutor-input"
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
-                placeholder="Escribe tu duda…"
+                placeholder={free ? 'Pregunta cualquier tema…' : 'Escribe tu duda…'}
                 maxLength={TUTOR_LIMITS.maxCharsPerTurn}
-                disabled={busy || needsLogin || error === 'denied' || error === 'unavailable'}
+                disabled={busy || needsLogin || locked || error === 'denied' || error === 'unavailable' || error === 'premium'}
                 autoComplete="off"
               />
               {busy ? (
@@ -288,7 +323,8 @@ export function TutorPanel({ question, chosen, onClose }: Props) {
             </form>
           )}
           <p className="tutor-fine">
-            {(!serverQuota || quota) && !needsLogin && `Te quedan ${left} de ${dailyLimit} consultas hoy · `}El tutor puede equivocarse: compáralo con la explicación oficial.
+            {(!serverQuota || quota) && !needsLogin && !locked && `Te quedan ${left} de ${dailyLimit} consultas hoy · `}
+            {free ? 'El tutor puede equivocarse: compáralo con tus apuntes.' : 'El tutor puede equivocarse: compáralo con la explicación oficial.'}
           </p>
         </footer>
       </motion.div>

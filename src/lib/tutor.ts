@@ -26,7 +26,7 @@ function getSample(): Promise<SampleFn | null> {
   return samplePromise
 }
 
-export type TutorErrorKind = 'unavailable' | 'denied' | 'busy' | 'refused' | 'failed' | 'cancelled' | 'login' | 'limit'
+export type TutorErrorKind = 'unavailable' | 'denied' | 'busy' | 'refused' | 'failed' | 'cancelled' | 'login' | 'limit' | 'premium'
 
 export class TutorError extends Error {
   kind: TutorErrorKind
@@ -67,6 +67,8 @@ export async function askTutor(
     token?: string
     /** Recibe cuántas consultas le quedan hoy, según el servidor. */
     onRemaining?: (left: number) => void
+    /** Tutor libre (Premium): sin una pregunta de por medio. */
+    free?: boolean
   },
 ): Promise<string> {
   const convo = trimTurns(turns)
@@ -107,7 +109,7 @@ export async function askTutor(
     res = await fetch('/api/tutor', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...(opts.token ? { Authorization: `Bearer ${opts.token}` } : {}) },
-      body: JSON.stringify({ context, turns: convo }),
+      body: JSON.stringify({ context, turns: convo, mode: opts.free ? 'free' : 'question' }),
       signal: opts.signal,
     })
   } catch (e) {
@@ -116,6 +118,7 @@ export async function askTutor(
   }
   if (res.status === 404 || res.status === 503) throw new TutorError('unavailable')
   if (res.status === 401) throw new TutorError('login')
+  if (res.status === 403) throw new TutorError('premium')
   if (res.status === 429) {
     const body = (await res.json().catch(() => ({}))) as { error?: string }
     throw new TutorError(body.error === 'limit' ? 'limit' : 'busy')

@@ -22,7 +22,7 @@ const ALLOW_GUESTS = process.env.TUTOR_ALLOW_GUESTS === '1'
  * Verifica la sesión del alumno y gasta una consulta de su límite diario.
  * Devuelve las consultas restantes, o una respuesta de error.
  */
-async function checkAccount(request: Request): Promise<{ remaining: number | null } | Response> {
+async function checkAccount(request: Request, free: boolean): Promise<{ remaining: number | null } | Response> {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
     return ALLOW_GUESTS ? { remaining: null } : bad(503, 'Cuentas no configuradas')
   }
@@ -35,6 +35,11 @@ async function checkAccount(request: Request): Promise<{ remaining: number | nul
   })
   const { data: user, error: userError } = await db.auth.getUser(token)
   if (userError || !user.user) return bad(401, 'login')
+  if (free) {
+    // Tutor libre: solo Premium (Premium tiene un límite diario de 10; el plan gratis, 3).
+    const { data: status } = await db.rpc('tutor_quota_status')
+    if (!status || (status as { limit: number }).limit < 10) return bad(403, 'premium')
+  }
   const { data: left, error } = await db.rpc('consume_tutor_quota')
   if (error) {
     console.error('Tutor: no se pudo descontar la consulta', error.message)
@@ -57,7 +62,7 @@ function isTurn(t: unknown): t is TutorTurn {
 }
 
 export async function POST(request: Request): Promise<Response> {
-  let body: { context?: unknown; turns?: unknown }
+  let body: { context?: unknown; turns?: unknown; mode?: unknown }
   try {
     body = await request.json()
   } catch {
@@ -70,7 +75,7 @@ export async function POST(request: Request): Promise<Response> {
   if (turns[0].role !== 'user' || turns[turns.length - 1].role !== 'user') return bad(400, 'La conversación debe empezar y terminar con el alumno')
 
   // La cuenta se revisa después de validar la conversación, para no gastar consultas en pedidos inválidos.
-  const account = await checkAccount(request)
+  const account = await checkAccount(request, body.mode === 'free')
   if (account instanceof Response) return account
 
   const messages: Anthropic.MessageParam[] = turns.map((t, i) => ({

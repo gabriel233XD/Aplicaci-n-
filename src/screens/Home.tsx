@@ -1,9 +1,10 @@
-import { ArrowLeft, ArrowRight, ChartColumn, CircleCheck, CirclePlay, Cloud, CloudOff, Coins, Crown, FileText, LogIn, PencilLine, Target, Timer, Trophy, UserRound } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { ArrowLeft, ArrowRight, ChartColumn, CircleCheck, CirclePlay, Cloud, CloudOff, Coins, Crown, MessageCircleQuestion, FileText, LogIn, PencilLine, Target, Timer, Trophy, UserRound } from 'lucide-react'
+import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
 import type { ExamConfig, Progress } from '../types'
 import { isWeeklyOpen, nextWeeklyOpening, weakTopics, weekId } from '../lib/game'
 import { CoinPill, CourseIcon, Screen, StreakPill } from '../ui'
+import { TutorPanel } from '../components/TutorPanel'
 import { itemVariants, listVariants, tap } from '../lib/ui-helpers'
 import { useAuth } from '../lib/auth'
 import { supabase, type Ranking } from '../lib/supabase'
@@ -69,6 +70,8 @@ export function Home({ exam, progress, demoMode, onToggleDemo, onPractice, onPra
       if (r?.me) setLive({ position: r.me.position, participants: r.participants })
     })
   }, [auth.userId, exam.id, lastWeek])
+  const [freeTutor, setFreeTutor] = useState(false)
+  const courses = [...new Set(exam.questions.map((q) => q.course))]
   const lastPosition = live?.position ?? last?.position ?? 0
   const lastParticipants = live?.participants ?? last?.participants ?? 0
 
@@ -176,6 +179,19 @@ export function Home({ exam, progress, demoMode, onToggleDemo, onPractice, onPra
           <span className="cta-arrow" aria-hidden="true"><ArrowRight size={24} strokeWidth={2.6} /></span>
         </motion.button>
 
+        <motion.button variants={itemVariants} whileTap={tap} whileHover={{ y: -2 }} className="card free-tutor-card" onClick={() => setFreeTutor(true)}>
+          <span className="free-tutor-icon" aria-hidden="true">
+            <MessageCircleQuestion size={26} />
+          </span>
+          <span className="free-tutor-text">
+            <strong>
+              Tutor libre <span className="premium-badge"><Crown size={12} /> Premium</span>
+            </strong>
+            <span>Pregúntale al tutor IA cualquier tema del examen</span>
+          </span>
+          <ArrowRight size={22} aria-hidden="true" />
+        </motion.button>
+
         {weak.length > 0 && (
           <motion.section variants={itemVariants} className="card">
             <h3 className="h-icon"><Target size={20} /> Tus temas débiles</h3>
@@ -238,7 +254,8 @@ export function Home({ exam, progress, demoMode, onToggleDemo, onPractice, onPra
           </div>
           <ul className="checks">
             <li>Entrada gratis al examen de cada domingo</li>
-            <li>Tutor con IA que te explica donde fallas</li>
+            <li>Tutor libre: pregunta cualquier tema del examen</li>
+            <li>Tutor con IA: 10 consultas al día</li>
             <li>Reporte completo por tema y sin anuncios</li>
           </ul>
           <button className="btn btn-ghost full" disabled>Próximamente</button>
@@ -249,6 +266,9 @@ export function Home({ exam, progress, demoMode, onToggleDemo, onPractice, onPra
           Modo demo: abrir el examen del domingo en cualquier momento
         </motion.label>
       </motion.div>
+      <AnimatePresence>
+        {freeTutor && <TutorPanel key="free-tutor" free={{ examName: exam.name, courses }} onClose={() => setFreeTutor(false)} />}
+      </AnimatePresence>
     </Screen>
   )
 }

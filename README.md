@@ -44,6 +44,7 @@ update profiles set premium_until = now() + interval '30 days' where alias = 'Ap
 ## 🎓 Tutor IA ("Profe IA")
 Después de responder una pregunta (o desde la revisión de resultados), el alumno abre un chat con un tutor que le explica su error paso a paso. El tutor conoce la pregunta, las opciones, la respuesta correcta y la explicación oficial, y tiene sugerencias rápidas: "Explícamelo más fácil", "Dame un ejemplo parecido" y "¿Qué truco uso en el examen?".
 
+- **Tutor libre (Premium)**: desde la pantalla principal, el alumno pregunta cualquier tema del examen sin partir de una pregunta. El servidor rechaza el modo libre a quien no es Premium.
 - Instrucciones del tutor: `src/lib/tutorPrompt.ts`.
 - Pantalla del chat: `src/components/TutorPanel.tsx`.
 - Servidor: `api/tutor.ts`, una función de Vercel que llama a la API de Claude. La clave nunca llega al navegador.
