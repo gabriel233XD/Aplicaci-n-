@@ -1,6 +1,6 @@
 import type { Session } from '@supabase/supabase-js'
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { accountsEnabled, supabase } from './supabase'
+import { accountsEnabled, supabase, type SocialProvider } from './supabase'
 
 export type Profile = { alias: string; premium: boolean }
 
@@ -14,7 +14,10 @@ type AuthState = {
   recovering: boolean
   signIn: (email: string, password: string) => Promise<void>
   signUp: (email: string, password: string, alias: string) => Promise<{ needsConfirmation: boolean }>
-  signInWithGoogle: () => Promise<void>
+  signInWithProvider: (provider: SocialProvider) => Promise<void>
+  /** Error al volver de Google, Facebook o X (por ejemplo, si el alumno canceló). */
+  oauthError: string | null
+  clearOauthError: () => void
   sendPasswordReset: (email: string) => Promise<void>
   setNewPassword: (password: string) => Promise<void>
   cancelRecovery: () => void
@@ -40,11 +43,26 @@ export function authErrorMessage(e: unknown): string {
   return 'Algo salió mal. Inténtalo de nuevo.'
 }
 
+/** Si la red social devolvió un error en la dirección, lo traduce y limpia la dirección. */
+function readOauthError(): string | null {
+  try {
+    const params = new URLSearchParams(window.location.hash.slice(1) || window.location.search)
+    const error = params.get('error')
+    if (!error) return null
+    window.history.replaceState(null, '', window.location.pathname)
+    if (error === 'access_denied') return 'Cancelaste el inicio de sesión. Puedes intentarlo de nuevo cuando quieras.'
+    return 'No se pudo iniciar sesión con esa red social. Prueba de nuevo o usa tu correo.'
+  } catch {
+    return null
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(accountsEnabled)
   const [recovering, setRecovering] = useState(false)
+  const [oauthError, setOauthError] = useState<string | null>(() => readOauthError())
   const userId = session?.user.id ?? null
 
   useEffect(() => {
@@ -95,9 +113,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Con confirmación por correo activada, Supabase no devuelve sesión todavía.
         return { needsConfirmation: !data.session }
       },
-      async signInWithGoogle() {
-        const { error } = await supabase!.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } })
+      async signInWithProvider(provider) {
+        // Lleva al alumno a la página de Google, Facebook o X; al aceptar, vuelve a la app con la sesión iniciada.
+        const { error } = await supabase!.auth.signInWithOAuth({ provider, options: { redirectTo: window.location.origin } })
         if (error) throw error
+      },
+      oauthError,
+      clearOauthError() {
+        setOauthError(null)
       },
       async sendPasswordReset(email) {
         const { error } = await supabase!.auth.resetPasswordForEmail(email.trim(), { redirectTo: window.location.origin })
@@ -121,7 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setProfile(null)
       },
     }),
-    [loading, session, userId, profile, recovering, loadProfile],
+    [loading, session, userId, profile, recovering, oauthError, loadProfile],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

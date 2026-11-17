@@ -3,9 +3,14 @@ import { motion } from 'framer-motion'
 import { Screen } from '../ui'
 import { itemVariants, listVariants, tap } from '../lib/ui-helpers'
 import { Dunes } from './ExamPicker'
+import { socialProviders, type SocialProvider } from '../lib/supabase'
+import { SocialButtons } from '../components/SocialButtons'
 
 type Props = {
+  /** Mensaje si falló el inicio con una red social. */
+  error?: string | null
   onSignUp: () => void
+  onSocial: (provider: SocialProvider) => void
   onSignIn: () => void
   onGuest: () => void
 }
@@ -17,7 +22,7 @@ const BENEFITS = [
 ]
 
 /** Primera pantalla (con cuentas activadas): iniciar sesión antes de elegir el examen. */
-export function Welcome({ onSignUp, onSignIn, onGuest }: Props) {
+export function Welcome({ error, onSignUp, onSocial, onSignIn, onGuest }: Props) {
   return (
     <Screen>
       <header className="hero">
@@ -39,6 +44,11 @@ export function Welcome({ onSignUp, onSignIn, onGuest }: Props) {
       </header>
 
       <motion.div className="stack" variants={listVariants} initial="hidden" animate="show">
+        {error && (
+          <motion.p variants={itemVariants} className="form-error" role="alert">
+            {error}
+          </motion.p>
+        )}
         <motion.ul variants={itemVariants} className="card benefits">
           {BENEFITS.map(({ icon: Icon, text }) => (
             <li key={text}>
@@ -50,8 +60,16 @@ export function Welcome({ onSignUp, onSignIn, onGuest }: Props) {
           ))}
         </motion.ul>
 
-        <motion.button variants={itemVariants} whileTap={tap} className="btn btn-primary big full" onClick={onSignUp}>
-          Crear cuenta gratis
+        {socialProviders.length > 0 && (
+          <motion.div variants={itemVariants} className="stack-sm">
+            <SocialButtons verb="Continúa con" onPick={onSocial} />
+            <p className="consent-note">
+              Al continuar confirmas que tienes 14 años o más, o que tu mamá, papá o apoderado te dio permiso.
+            </p>
+          </motion.div>
+        )}
+        <motion.button variants={itemVariants} whileTap={tap} className={`btn ${socialProviders.length ? 'btn-ghost' : 'btn-primary'} big full`} onClick={onSignUp}>
+          {socialProviders.length > 0 ? 'Crear cuenta con mi correo' : 'Crear cuenta gratis'}
         </motion.button>
         <motion.button variants={itemVariants} whileTap={tap} className="btn btn-ghost big full" onClick={onSignIn}>
           Ya tengo cuenta

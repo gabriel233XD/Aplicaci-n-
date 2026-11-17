@@ -2,7 +2,8 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { Crown, LogOut, Mail, UserRound, X } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { authErrorMessage, useAuth } from '../lib/auth'
-import { googleEnabled } from '../lib/supabase'
+import { socialProviders, type SocialProvider } from '../lib/supabase'
+import { SocialButtons } from './SocialButtons'
 import { tap } from '../lib/ui-helpers'
 
 type Mode = 'signin' | 'signup' | 'reset'
@@ -90,6 +91,26 @@ export function AuthSheet({ reason, initialMode = 'signup', onClose }: Props) {
     }
   }
 
+  async function social(provider: SocialProvider) {
+    setError(null)
+    if (mode === 'signup' && !consent) return setError('Marca la casilla de permiso para continuar.')
+    setBusy(true)
+    try {
+      await auth.signInWithProvider(provider) // la página se va a Google, Facebook o X
+    } catch (err) {
+      setError(authErrorMessage(err))
+      setBusy(false)
+    }
+  }
+
+  const consentBox = (
+    <label className="check" htmlFor="auth-consent">
+      <input id="auth-consent" type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
+      <span>Tengo 14 años o más, o mi mamá, papá o apoderado me dio permiso para crear esta cuenta.</span>
+    </label>
+  )
+  const hasSocial = socialProviders.length > 0 && mode !== 'reset'
+
   const title = mode === 'signin' ? 'Inicia sesión' : mode === 'signup' ? 'Crea tu cuenta' : 'Recupera tu contraseña'
 
   return (
@@ -115,6 +136,17 @@ export function AuthSheet({ reason, initialMode = 'signup', onClose }: Props) {
             </button>
           ))}
         </div>
+      )}
+
+      {mode === 'signup' && consentBox}
+
+      {hasSocial && (
+        <>
+          <SocialButtons disabled={busy} verb={mode === 'signup' ? 'Regístrate con' : 'Continúa con'} onPick={social} />
+          <div className="divider">
+            <span>o con tu correo</span>
+          </div>
+        </>
       )}
 
       <form className="auth-form" onSubmit={submit} noValidate>
@@ -149,12 +181,6 @@ export function AuthSheet({ reason, initialMode = 'signup', onClose }: Props) {
             />
           </div>
         )}
-        {mode === 'signup' && (
-          <label className="check" htmlFor="auth-consent">
-            <input id="auth-consent" type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
-            <span>Tengo 14 años o más, o mi mamá, papá o apoderado me dio permiso para crear esta cuenta.</span>
-          </label>
-        )}
 
         <AnimatePresence>
           {error && (
@@ -173,26 +199,6 @@ export function AuthSheet({ reason, initialMode = 'signup', onClose }: Props) {
           {busy ? 'Un momento…' : mode === 'signin' ? 'Entrar' : mode === 'signup' ? 'Crear mi cuenta' : 'Enviar enlace'}
         </motion.button>
       </form>
-
-      {googleEnabled && mode !== 'reset' && (
-        <>
-          <div className="divider"><span>o</span></div>
-          <motion.button
-            whileTap={tap}
-            className="btn btn-ghost full"
-            disabled={busy}
-            onClick={async () => {
-              try {
-                await auth.signInWithGoogle()
-              } catch (err) {
-                setError(authErrorMessage(err))
-              }
-            }}
-          >
-            Continuar con Google
-          </motion.button>
-        </>
-      )}
 
       <div className="auth-links">
         {mode === 'signin' && (
@@ -319,6 +325,47 @@ export function AccountSheet({ onClose }: { onClose: () => void }) {
       >
         <LogOut size={18} /> Cerrar sesión
       </motion.button>
+    </Sheet>
+  )
+}
+
+/** Tras registrarse con Google, Facebook o X: el alumno elige su apodo para el ranking. */
+export function ChooseAliasSheet({ onClose }: { onClose: () => void }) {
+  const auth = useAuth()
+  const [alias, setAlias] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function submit(e: FormEvent) {
+    e.preventDefault()
+    if (alias.trim().length < 3 || alias.trim().length > 20) return setError('Tu apodo debe tener entre 3 y 20 caracteres.')
+    setBusy(true)
+    try {
+      await auth.updateAlias(alias)
+      onClose()
+    } catch (err) {
+      setError(authErrorMessage(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Sheet title="¡Bienvenido! Elige tu apodo" onClose={onClose}>
+      <p className="muted">Así te verán los demás en el ranking de Ica. No uses tu nombre completo.</p>
+      <form className="auth-form" onSubmit={submit} noValidate>
+        <div className="field">
+          <label htmlFor="choose-alias">Apodo para el ranking</label>
+          <input id="choose-alias" value={alias} onChange={(e) => setAlias(e.target.value)} placeholder="Ej: LeonDeIca" maxLength={20} autoComplete="nickname" />
+        </div>
+        {error && <p className="form-error" role="alert">{error}</p>}
+        <motion.button whileTap={tap} type="submit" className="btn btn-primary big full" disabled={busy}>
+          {busy ? 'Guardando…' : 'Guardar apodo'}
+        </motion.button>
+      </form>
+      <button className="link guest-link" onClick={onClose}>
+        Ahora no (te llamaremos {auth.profile?.alias})
+      </button>
     </Sheet>
   )
 }

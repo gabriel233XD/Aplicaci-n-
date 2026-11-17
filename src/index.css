@@ -654,3 +654,17 @@ p { margin: 0; }
 .guest-link { align-self: center; color: var(--muted); }
 .picker-bar { margin-bottom: -4px; }
 .account-btn.wide { gap: 8px; padding: 0 14px; font-weight: 800; max-width: 60vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── Redes sociales ── */
+:root { --social-google-bg: #ffffff; --social-google-fg: #1f1f1f; --social-google-border: #c9d4d1; --social-x-bg: #000000; --social-x-fg: #ffffff; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --social-google-bg: #131314; --social-google-fg: #e3e3e3; --social-google-border: #8e918f; --social-x-bg: #ffffff; --social-x-fg: #000000; }
+}
+:root[data-theme="dark"] { --social-google-bg: #131314; --social-google-fg: #e3e3e3; --social-google-border: #8e918f; --social-x-bg: #ffffff; --social-x-fg: #000000; }
+.social { display: flex; flex-direction: column; gap: 10px; }
+.social-btn { width: 100%; justify-content: center; gap: 12px; min-height: 52px; font-size: 1rem; border: 2px solid transparent; }
+.social-btn svg { flex: none; }
+.social-google { background: var(--social-google-bg); color: var(--social-google-fg); border-color: var(--social-google-border); }
+.social-facebook { background: #1877f2; color: #ffffff; }
+.social-x { background: var(--social-x-bg); color: var(--social-x-fg); }
+.consent-note { font-size: 0.78rem; color: var(--muted); text-align: center; }

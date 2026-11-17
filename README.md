@@ -18,7 +18,7 @@ App para prepararse para el examen de admisión **jugando**. Empezamos con la **
 
 ## 👤 Cuentas de usuario (Supabase)
 - **Bienvenida**: antes de elegir el examen, el alumno crea su cuenta, inicia sesión o sigue sin cuenta.
-- **Registro** con apodo para el ranking (no se pide el nombre real), correo y contraseña, más la casilla de permiso para menores de 14 años. También permite recuperar la contraseña por correo y, si se activa, entrar con Google.
+- **Registro** con **Google, Facebook o X** en un toque, o con correo y contraseña. Se pide un apodo para el ranking (no el nombre real) y la confirmación de permiso para menores de 14 años. Quien entra con una red social elige su apodo al llegar. También permite recuperar la contraseña por correo.
 - **Progreso en la nube**: monedas, racha y estadísticas se guardan por examen. Al crear la cuenta se sube lo que el alumno ya tenía como invitado.
 - **Ranking real** del Examen de Admisión: uno por semana, con el Top 10 por apodo y el puesto en vivo.
 - **Tutor IA**: solo con sesión iniciada. Da 3 consultas al día en el plan gratis y 10 en Premium, contadas en el servidor.
@@ -29,7 +29,10 @@ App para prepararse para el examen de admisión **jugando**. Empezamos con la **
 2. En **SQL Editor**, pega y ejecuta `supabase/migrations/0001_cuentas.sql`.
 3. En **Authentication → URL Configuration**, pon la dirección de tu app (por ejemplo `https://ingresaya.vercel.app`) como *Site URL*.
 4. Copia `.env.example` como `.env.local` (para probar en tu computadora) y, en Vercel, agrega las mismas variables: `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` (están en Project Settings → API).
-5. Opcional: activa Google en **Authentication → Providers** y pon `VITE_AUTH_GOOGLE=true`.
+5. Redes sociales (opcional): actívalas en Supabase (**Authentication → Sign In / Providers**) y pon en `VITE_AUTH_PROVIDERS` las que activaste, por ejemplo `google,facebook,x`. Cada red pide crear una "app" en su página de desarrolladores y copiar su *Client ID* y *Secret* en Supabase. Como dirección de retorno (*callback URL*) se usa la que muestra Supabase (`https://<tu-proyecto>.supabase.co/auth/v1/callback`):
+   - **Google**: [console.cloud.google.com](https://console.cloud.google.com) → APIs y servicios → Credenciales → ID de cliente de OAuth (tipo "Aplicación web").
+   - **Facebook**: [developers.facebook.com](https://developers.facebook.com) → Crear app → "Inicio de sesión con Facebook". Para que la use el público, la app debe pasar a modo "Activo".
+   - **X**: [developer.x.com](https://developer.x.com) → Proyecto y app → "User authentication settings" con OAuth 2.0. En Supabase usa el proveedor **X / Twitter (OAuth 2.0)**.
 
 Para dar Premium a un alumno (mientras no esté el pago automático), en el SQL Editor:
 ```sql

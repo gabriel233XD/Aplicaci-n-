@@ -6,7 +6,7 @@ import { RULES, dayKey, pickQuestions, simulatedRanking, weekId } from './lib/ga
 import { loadSelectedExam, saveSelectedExam, useProgress } from './lib/storage'
 import { useAuth } from './lib/auth'
 import { accountsEnabled, supabase, type Ranking } from './lib/supabase'
-import { AccountSheet, AuthSheet, NewPasswordSheet } from './components/AuthSheet'
+import { AccountSheet, AuthSheet, ChooseAliasSheet, NewPasswordSheet } from './components/AuthSheet'
 import { Screen } from './ui'
 import { ExamPicker } from './screens/ExamPicker'
 import { Welcome } from './screens/Welcome'
@@ -33,6 +33,9 @@ export default function App() {
   const [sheet, setSheet] = useState<null | 'signup' | 'signin' | 'account'>(null)
   // Con cuentas activadas, primero se pide iniciar sesión (o elegir seguir sin cuenta).
   const showWelcome = auth.enabled && !auth.loading && !auth.userId && !guest
+  // Quien entra con Google, Facebook o X recibe un apodo automático ("Postulante12345"): se le invita a cambiarlo.
+  const [aliasAsked, setAliasAsked] = useState(false)
+  const needsAlias = !!auth.profile && /^Postulante\d*$/.test(auth.profile.alias) && !aliasAsked && !auth.recovering
   const chooseGuest = () => {
     saveGuestChoice()
     setGuest(true)
@@ -46,7 +49,23 @@ export default function App() {
             <div className="spinner" aria-hidden="true" />
           </Screen>
         ) : showWelcome ? (
-          <Welcome key="welcome" onSignUp={() => setSheet('signup')} onSignIn={() => setSheet('signin')} onGuest={chooseGuest} />
+          <Welcome
+            key="welcome"
+            error={auth.oauthError}
+            onSignUp={() => {
+              auth.clearOauthError()
+              setSheet('signup')
+            }}
+            onSignIn={() => {
+              auth.clearOauthError()
+              setSheet('signin')
+            }}
+            onSocial={(provider) => {
+              auth.clearOauthError()
+              void auth.signInWithProvider(provider)
+            }}
+            onGuest={chooseGuest}
+          />
         ) : exam ? (
           // `key` separa el progreso de cada examen (UNICA, Beca 18, etc.) y de cada cuenta.
           <ExamApp key={`${exam.id}:${auth.userId ?? 'invitado'}`} exam={exam} onChangeExam={() => pick(null)} />
@@ -61,6 +80,7 @@ export default function App() {
         {sheet === 'account' && auth.userId && <AccountSheet key="account-root" onClose={() => setSheet(null)} />}
       </AnimatePresence>
       <AnimatePresence>{auth.recovering && <NewPasswordSheet key="new-password" />}</AnimatePresence>
+      <AnimatePresence>{needsAlias && <ChooseAliasSheet key="choose-alias" onClose={() => setAliasAsked(true)} />}</AnimatePresence>
     </MotionConfig>
   )
 }

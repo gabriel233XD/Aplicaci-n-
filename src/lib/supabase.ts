@@ -9,8 +9,20 @@ export const supabase: SupabaseClient | null = url && anonKey ? createClient(url
 
 export const accountsEnabled = supabase !== null
 
-/** Botón "Continuar con Google": solo si se configuró en Supabase. */
-export const googleEnabled = import.meta.env.VITE_AUTH_GOOGLE === 'true'
+/** Redes sociales para registrarse. Solo aparecen las que se activaron en Supabase. */
+export type SocialProvider = 'google' | 'facebook' | 'x'
+
+const SOCIAL: SocialProvider[] = ['google', 'facebook', 'x']
+const providersSetting =
+  (import.meta.env.VITE_AUTH_PROVIDERS as string | undefined) ?? (import.meta.env.VITE_AUTH_GOOGLE === 'true' ? 'google' : '')
+
+/** Ej: VITE_AUTH_PROVIDERS=google,facebook,x */
+export const socialProviders: SocialProvider[] = SOCIAL.filter((p) =>
+  providersSetting
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .includes(p),
+)
 
 export type RankingEntry = { position: number; alias: string; score: number; isMe: boolean }
 export type Ranking = {
